@@ -1,80 +1,45 @@
 #include <assert.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #include "dht11.h"
-#include "main.h"
 
-GPIO_TypeDef test_gpio_b;
-
-static uint8_t waveform[1024];
-static size_t waveform_length;
-static size_t waveform_index;
-
-static void append_level(uint8_t level, size_t reads)
+static void make_capture(uint16_t edges[DHT11_CAPTURE_EDGE_COUNT],
+                         uint8_t checksum)
 {
-    while (reads-- > 0U) {
-        waveform[waveform_length++] = level;
+    const uint8_t bytes[5] = {65U, 0U, 27U, 0U, checksum};
+    uint16_t elapsed = 0U;
+
+    edges[0] = elapsed;
+    elapsed = (uint16_t)(elapsed + 80U);
+    edges[1] = elapsed;
+    elapsed = (uint16_t)(elapsed + 50U);
+
+    for (uint8_t bit = 0U; bit < 40U; bit++) {
+        const uint8_t rising = (uint8_t)(2U + bit * 2U);
+        const uint8_t falling = (uint8_t)(rising + 1U);
+        const uint8_t value =
+            (uint8_t)((bytes[bit / 8U] >> (7U - bit % 8U)) & 1U);
+        edges[rising] = elapsed;
+        elapsed = (uint16_t)(elapsed + (value != 0U ? 70U : 28U));
+        edges[falling] = elapsed;
+        elapsed = (uint16_t)(elapsed + 50U);
     }
 }
-
-static void load_frame(uint8_t humidity, uint8_t temperature, uint8_t checksum)
-{
-    uint8_t bytes[5] = {humidity, 0U, temperature, 0U, checksum};
-    size_t byte_index;
-    int bit;
-
-    waveform_length = 0U;
-    waveform_index = 0U;
-    /* DHT11 acknowledgement: 80 us low, then 80 us high. */
-    append_level(GPIO_PIN_RESET, 4U);
-    append_level(GPIO_PIN_SET, 4U);
-
-    for (byte_index = 0U; byte_index < 5U; byte_index++) {
-        for (bit = 7; bit >= 0; bit--) {
-            append_level(GPIO_PIN_RESET, 3U);
-            append_level(GPIO_PIN_SET, (bytes[byte_index] & (1U << bit)) ? 8U : 3U);
-        }
-    }
-    append_level(GPIO_PIN_RESET, 3U);
-}
-
-void HAL_GPIO_Init(GPIO_TypeDef *port, GPIO_InitTypeDef *init)
-{
-    (void)port;
-    (void)init;
-}
-
-void HAL_GPIO_WritePin(GPIO_TypeDef *port, uint16_t pin, uint32_t state)
-{
-    (void)port;
-    (void)pin;
-    (void)state;
-}
-
-uint32_t HAL_GPIO_ReadPin(GPIO_TypeDef *port, uint16_t pin)
-{
-    (void)port;
-    (void)pin;
-    if (waveform_index >= waveform_length) {
-        return GPIO_PIN_SET;
-    }
-    return waveform[waveform_index++];
-}
-
-void delay_us(uint32_t us) { (void)us; }
-void delay_ms(uint32_t ms) { (void)ms; }
 
 int main(void)
 {
-    dht11_data_t measurement;
+    uint16_t edges[DHT11_CAPTURE_EDGE_COUNT];
+    dht11_data_t data;
 
-    load_frame(65U, 27U, 92U);
-    assert(dht11_read(&measurement) == 0);
-    assert(measurement.hum == 65U);
-    assert(measurement.temp == 27U);
+    make_capture(edges, 92U);
+    assert(dht11_decode_capture(edges, DHT11_CAPTURE_EDGE_COUNT, &data) == 0);
+    assert(data.hum == 65U);
+    assert(data.temp == 27U);
+    assert(dht11_decode_capture(edges, DHT11_CAPTURE_EDGE_COUNT - 1U, &data) ==
+           -2);
 
-    load_frame(65U, 27U, 0U);
-    assert(dht11_read(&measurement) != 0);
+    make_capture(edges, 93U);
+    assert(dht11_decode_capture(edges, DHT11_CAPTURE_EDGE_COUNT, &data) == -3);
+    assert(dht11_decode_capture(edges, DHT11_CAPTURE_EDGE_COUNT, NULL) == -1);
     return 0;
 }

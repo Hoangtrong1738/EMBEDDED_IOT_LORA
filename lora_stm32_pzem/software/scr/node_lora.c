@@ -18,6 +18,12 @@
 #define NODE_ACK_TIMEOUT_MS       1500U
 #define NODE_TX_PERIOD_MS        10000U
 #define NODE_SENSOR_PERIOD_MS     1000U
+#define NODE_DHT_START_LOW_MS       20U
+#define NODE_DHT_CAPTURE_TIMEOUT_MS 10U
+#define NODE_ALARM_FAST_BLINK_MS   300U
+#define NODE_LINK_BLINK_MS         300U
+#define NODE_ALARM_DHT_BLINK_MS  1000U
+#define NODE_ALARM_UPDATE_MS       20U
 #define NODE_RX_BUFFER_SIZE         32U
 
 enum { TX_REASON_PERIODIC = 1U, TX_REASON_STATE_CHANGE = 2U };
@@ -29,6 +35,8 @@ static QueueHandle_t tx_queue;
 static TaskHandle_t radio_task_handle;
 static TaskHandle_t monitor_task_handle;
 static uint16_t packet_sequence;
+static uint8_t radio_init_fault;
+static uint8_t gateway_connected;
 
 static void uart_log(const char *message)
 {
@@ -36,22 +44,96 @@ static void uart_log(const char *message)
                             (uint16_t)strlen(message), 1000U);
 }
 
-static void set_leds(uint8_t system_ready, uint8_t acknowledged, uint8_t status)
+static void set_leds(uint8_t acknowledged, uint8_t status)
 {
-    HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
-                      system_ready ? NODE_LED_ACTIVE_STATE
-                                   : NODE_LED_IDLE_STATE);
     HAL_GPIO_WritePin(NODE_LED_LINK_PORT, NODE_LED_LINK_PIN,
                       acknowledged ? NODE_LED_ACTIVE_STATE
-                                   : NODE_LED_IDLE_STATE);
-    HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
-                      status != 0U ? NODE_LED_ACTIVE_STATE
                                    : NODE_LED_IDLE_STATE);
 #if NODE_BUZZER_ENABLED
     HAL_GPIO_WritePin(NODE_BUZZER_PORT, NODE_BUZZER_PIN,
                       status != 0U ? NODE_BUZZER_ACTIVE_STATE
                                    : NODE_BUZZER_IDLE_STATE);
+#else
+    (void)status;
 #endif
+}
+
+static void set_radio_init_fault(uint8_t fault)
+{
+    (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+    radio_init_fault = fault;
+    (void)xSemaphoreGive(state_mutex);
+}
+
+static void update_alarm_led(uint8_t status, uint8_t radio_fault,
+                             uint8_t link_lost,
+                             TickType_t now, TickType_t *last_toggle,
+                             TickType_t *active_interval, uint8_t *led_on)
+{
+    if (link_lost || radio_fault != 0U) {
+        *active_interval = 0U;
+        *led_on = 1U;
+        HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
+                          NODE_LED_ACTIVE_STATE);
+        return;
+    }
+
+    const uint8_t fast_fault = (uint8_t)(
+        (status & (ST_OVER_VOLTAGE | ST_OVER_CURRENT | ST_OVER_POWER |
+                   ST_PZEM_FAIL | ST_WDG_RESET)) != 0U);
+    const uint8_t dht_fault = (uint8_t)(
+        (status & (ST_DHT_FAIL | ST_OVER_TEMP | ST_OVER_HUMIDITY)) != 0U);
+    TickType_t interval = 0U;
+
+    if (fast_fault) {
+        interval = pdMS_TO_TICKS(NODE_ALARM_FAST_BLINK_MS);
+    } else if (dht_fault) {
+        interval = pdMS_TO_TICKS(NODE_ALARM_DHT_BLINK_MS);
+    }
+
+    if (interval == 0U) {
+        *active_interval = 0U;
+        *led_on = 0U;
+        HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
+                          NODE_LED_IDLE_STATE);
+    } else if (interval != *active_interval) {
+        *active_interval = interval;
+        *last_toggle = now;
+        *led_on = 1U;
+        HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
+                          NODE_LED_ACTIVE_STATE);
+    } else if ((TickType_t)(now - *last_toggle) >= interval) {
+        *last_toggle = now;
+        *led_on = (uint8_t)!(*led_on);
+        HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
+                          *led_on ? NODE_LED_ACTIVE_STATE
+                                  : NODE_LED_IDLE_STATE);
+    }
+}
+
+static void update_system_led(uint8_t connected, TickType_t now,
+                              TickType_t *last_toggle, uint8_t *led_on,
+                              uint8_t *blink_started)
+{
+    if (connected) {
+        *blink_started = 0U;
+        *led_on = 1U;
+        HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+                          NODE_LED_ACTIVE_STATE);
+    } else if (*blink_started == 0U) {
+        *blink_started = 1U;
+        *last_toggle = now;
+        *led_on = 1U;
+        HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+                          NODE_LED_ACTIVE_STATE);
+    } else if ((TickType_t)(now - *last_toggle) >=
+               pdMS_TO_TICKS(NODE_LINK_BLINK_MS)) {
+        *last_toggle = now;
+        *led_on = (uint8_t)!(*led_on);
+        HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+                          *led_on ? NODE_LED_ACTIVE_STATE
+                                  : NODE_LED_IDLE_STATE);
+    }
 }
 
 static void queue_telemetry(uint8_t reason)
@@ -200,7 +282,23 @@ static void dht_task(void *argument)
     (void)argument;
     for (;;) {
         dht11_data_t data = {0};
-        const uint8_t valid = (uint8_t)(dht11_read(&data) == 0);
+        int read_result = dht11_start();
+        if (read_result == 0) {
+            vTaskDelay(pdMS_TO_TICKS(NODE_DHT_START_LOW_MS));
+            read_result = dht11_capture_start();
+            if (read_result == 0) {
+                if (ulTaskNotifyTake(pdTRUE,
+                                     pdMS_TO_TICKS(NODE_DHT_CAPTURE_TIMEOUT_MS)) > 0U) {
+                    read_result = dht11_capture_finish(&data);
+                } else {
+                    dht11_abort();
+                    read_result = -2;
+                }
+            } else {
+                dht11_abort();
+            }
+        }
+        const uint8_t valid = (uint8_t)(read_result == 0);
         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
         node_state_update_dht(&node_state, valid, (i16)data.temp, data.hum);
         (void)xSemaphoreGive(state_mutex);
@@ -226,17 +324,39 @@ static void power_task(void *argument)
 static void monitor_task(void *argument)
 {
     TickType_t last_periodic = xTaskGetTickCount();
+    TickType_t last_led_toggle = 0U;
+    TickType_t active_led_interval = 0U;
+    TickType_t last_link_toggle = 0U;
+    uint8_t alarm_led_on = 0U;
+    uint8_t system_led_on = 0U;
+    uint8_t link_blink_started = 0U;
     (void)argument;
     for (;;) {
         uint8_t changed;
-        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+        uint8_t status;
+        uint8_t radio_fault;
+        uint8_t connected;
+
+        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(NODE_ALARM_UPDATE_MS));
+        const TickType_t now = xTaskGetTickCount();
         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
         changed = node_state_evaluate(&node_state);
+        status = node_state.sample.status;
+        radio_fault = radio_init_fault;
+        connected = gateway_connected;
         (void)xSemaphoreGive(state_mutex);
+
+        update_system_led((uint8_t)(connected && !radio_fault), now,
+                          &last_link_toggle, &system_led_on,
+                          &link_blink_started);
+        update_alarm_led(status, radio_fault, (uint8_t)!connected, now,
+                         &last_led_toggle, &active_led_interval,
+                         &alarm_led_on);
+
         if (changed) queue_telemetry(TX_REASON_STATE_CHANGE);
-        if ((xTaskGetTickCount() - last_periodic) >=
+        if ((TickType_t)(now - last_periodic) >=
             pdMS_TO_TICKS(NODE_TX_PERIOD_MS)) {
-            last_periodic = xTaskGetTickCount();
+            last_periodic = now;
             queue_telemetry(TX_REASON_PERIODIC);
         }
     }
@@ -247,13 +367,13 @@ static void radio_task(void *argument)
     uint8_t frame[NODE_RX_BUFFER_SIZE];
     uint8_t reason;
     (void)argument;
-    set_leds(0U, 0U, 0U);
+    set_leds(0U, 0U);
     while (!radio_init()) {
-        HAL_GPIO_TogglePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN);
+        set_radio_init_fault(1U);
         uart_log("SX127x init failed\r\n");
         vTaskDelay(pdMS_TO_TICKS(2000U));
     }
-    set_leds(1U, 0U, 0U);
+    set_radio_init_fault(0U);
     uart_log("Node 1 offline monitor ready\r\n");
 
     for (;;) {
@@ -266,9 +386,10 @@ static void radio_task(void *argument)
             create_telemetry_packet(&packet);
             acknowledged = send_with_ack(&packet);
             (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+            gateway_connected = acknowledged;
             node_state_snapshot(&node_state, &sample);
             (void)xSemaphoreGive(state_mutex);
-            set_leds(1U, acknowledged, sample.status);
+            set_leds(acknowledged, sample.status);
             (void)snprintf(message, sizeof(message),
                            "TX seq=%u T=%dC H=%u%% status=0x%02X %s\r\n",
                            packet.seq, packet.temp, packet.hum, packet.status,

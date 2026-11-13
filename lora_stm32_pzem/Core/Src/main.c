@@ -98,7 +98,10 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   delay_init();
-  dht11_init();
+  if (dht11_init() != 0)
+  {
+    Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */

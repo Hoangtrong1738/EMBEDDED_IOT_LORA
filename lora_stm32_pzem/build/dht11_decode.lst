@@ -1,0 +1,276 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"dht11_decode.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "hardware/dht11/src/dht11_decode.c"
+  18              		.section	.text.dht11_decode_capture,"ax",%progbits
+  19              		.align	1
+  20              		.global	dht11_decode_capture
+  21              		.syntax unified
+  22              		.thumb
+  23              		.thumb_func
+  25              	dht11_decode_capture:
+  26              	.LVL0:
+  27              	.LFB3:
+   1:hardware/dht11/src/dht11_decode.c **** #include "dht11.h"
+   2:hardware/dht11/src/dht11_decode.c **** 
+   3:hardware/dht11/src/dht11_decode.c **** #define DHT_DATA_BIT_THRESHOLD_US 50U
+   4:hardware/dht11/src/dht11_decode.c **** 
+   5:hardware/dht11/src/dht11_decode.c **** int dht11_decode_capture(const volatile uint16_t *edges, size_t edge_count,
+   6:hardware/dht11/src/dht11_decode.c ****                          dht11_data_t *data)
+   7:hardware/dht11/src/dht11_decode.c **** {
+  28              		.loc 1 7 1 view -0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 8
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+  32              		.loc 1 7 1 is_stmt 0 view .LVU1
+  33 0000 10B5     		push	{r4, lr}
+  34              	.LCFI0:
+  35              		.cfi_def_cfa_offset 8
+  36              		.cfi_offset 4, -8
+  37              		.cfi_offset 14, -4
+  38 0002 82B0     		sub	sp, sp, #8
+  39              	.LCFI1:
+  40              		.cfi_def_cfa_offset 16
+   8:hardware/dht11/src/dht11_decode.c ****     uint8_t bytes[5] = {0};
+  41              		.loc 1 8 5 is_stmt 1 view .LVU2
+  42              		.loc 1 8 13 is_stmt 0 view .LVU3
+  43 0004 0023     		movs	r3, #0
+  44 0006 0093     		str	r3, [sp]
+  45 0008 8DF80430 		strb	r3, [sp, #4]
+   9:hardware/dht11/src/dht11_decode.c **** 
+  10:hardware/dht11/src/dht11_decode.c ****     if (edges == NULL || data == NULL) return -1;
+  46              		.loc 1 10 5 is_stmt 1 view .LVU4
+  47              		.loc 1 10 8 is_stmt 0 view .LVU5
+  48 000c 0028     		cmp	r0, #0
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 2
+
+
+  49 000e 45D0     		beq	.L6
+  50 0010 8646     		mov	lr, r0
+  51              		.loc 1 10 23 discriminator 2 view .LVU6
+  52 0012 002A     		cmp	r2, #0
+  53 0014 45D0     		beq	.L7
+  11:hardware/dht11/src/dht11_decode.c ****     if (edge_count != DHT11_CAPTURE_EDGE_COUNT) return -2;
+  54              		.loc 1 11 5 is_stmt 1 view .LVU7
+  55              		.loc 1 11 8 is_stmt 0 view .LVU8
+  56 0016 5229     		cmp	r1, #82
+  57 0018 46D1     		bne	.L8
+  58              	.LBB2:
+  12:hardware/dht11/src/dht11_decode.c **** 
+  13:hardware/dht11/src/dht11_decode.c ****     for (uint8_t bit = 0U; bit < 40U; bit++) {
+  59              		.loc 1 13 18 view .LVU9
+  60 001a 1946     		mov	r1, r3
+  61              	.LVL1:
+  62              		.loc 1 13 18 view .LVU10
+  63 001c 00E0     		b	.L3
+  64              	.LVL2:
+  65              	.L4:
+  66              		.loc 1 13 18 view .LVU11
+  67              	.LBE2:
+   7:hardware/dht11/src/dht11_decode.c ****     uint8_t bytes[5] = {0};
+  68              		.loc 1 7 1 view .LVU12
+  69 001e 0146     		mov	r1, r0
+  70              	.LVL3:
+  71              	.L3:
+  72              	.LBB4:
+  73              		.loc 1 13 32 is_stmt 1 discriminator 1 view .LVU13
+  74 0020 2729     		cmp	r1, #39
+  75 0022 24D8     		bhi	.L11
+  76              	.LBB3:
+  14:hardware/dht11/src/dht11_decode.c ****         const uint8_t rising_edge = (uint8_t)(2U + bit * 2U);
+  77              		.loc 1 14 9 view .LVU14
+  78              		.loc 1 14 50 is_stmt 0 view .LVU15
+  79 0024 481C     		adds	r0, r1, #1
+  80 0026 C0B2     		uxtb	r0, r0
+  81              		.loc 1 14 23 view .LVU16
+  82 0028 4FEA400C 		lsl	ip, r0, #1
+  83 002c 5FFA8CFC 		uxtb	ip, ip
+  84              	.LVL4:
+  15:hardware/dht11/src/dht11_decode.c ****         const uint8_t falling_edge = (uint8_t)(rising_edge + 1U);
+  85              		.loc 1 15 9 is_stmt 1 view .LVU17
+  86              		.loc 1 15 23 is_stmt 0 view .LVU18
+  87 0030 0CF10103 		add	r3, ip, #1
+  88 0034 DBB2     		uxtb	r3, r3
+  89              	.LVL5:
+  16:hardware/dht11/src/dht11_decode.c ****         const uint16_t high_us =
+  90              		.loc 1 16 9 is_stmt 1 view .LVU19
+  17:hardware/dht11/src/dht11_decode.c ****             (uint16_t)(edges[falling_edge] - edges[rising_edge]);
+  91              		.loc 1 17 29 is_stmt 0 view .LVU20
+  92 0036 3EF81330 		ldrh	r3, [lr, r3, lsl #1]
+  93              	.LVL6:
+  94              		.loc 1 17 29 view .LVU21
+  95 003a 9BB2     		uxth	r3, r3
+  96              		.loc 1 17 51 view .LVU22
+  97 003c 3EF81CC0 		ldrh	ip, [lr, ip, lsl #1]
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 3
+
+
+  98              	.LVL7:
+  99              		.loc 1 17 51 view .LVU23
+ 100 0040 1FFA8CFC 		uxth	ip, ip
+  16:hardware/dht11/src/dht11_decode.c ****         const uint16_t high_us =
+ 101              		.loc 1 16 24 view .LVU24
+ 102 0044 A3EB0C03 		sub	r3, r3, ip
+ 103 0048 9BB2     		uxth	r3, r3
+ 104              	.LVL8:
+  18:hardware/dht11/src/dht11_decode.c ****         if (high_us > DHT_DATA_BIT_THRESHOLD_US) {
+ 105              		.loc 1 18 9 is_stmt 1 view .LVU25
+ 106              		.loc 1 18 12 is_stmt 0 view .LVU26
+ 107 004a 322B     		cmp	r3, #50
+ 108 004c E7D9     		bls	.L4
+  19:hardware/dht11/src/dht11_decode.c ****             bytes[bit / 8U] |= (uint8_t)(1U << (7U - bit % 8U));
+ 109              		.loc 1 19 13 is_stmt 1 view .LVU27
+ 110              		.loc 1 19 18 is_stmt 0 view .LVU28
+ 111 004e 02AB     		add	r3, sp, #8
+ 112              	.LVL9:
+ 113              		.loc 1 19 18 view .LVU29
+ 114 0050 03EBD104 		add	r4, r3, r1, lsr #3
+ 115 0054 14F808CC 		ldrb	ip, [r4, #-8]	@ zero_extendqisi2
+ 116              		.loc 1 19 52 view .LVU30
+ 117 0058 C943     		mvns	r1, r1
+ 118              	.LVL10:
+ 119              		.loc 1 19 52 view .LVU31
+ 120 005a 01F00701 		and	r1, r1, #7
+ 121              	.LVL11:
+ 122              		.loc 1 19 45 view .LVU32
+ 123 005e 0123     		movs	r3, #1
+ 124 0060 8B40     		lsls	r3, r3, r1
+ 125              		.loc 1 19 32 view .LVU33
+ 126 0062 DBB2     		uxtb	r3, r3
+ 127              		.loc 1 19 29 view .LVU34
+ 128 0064 4CEA0303 		orr	r3, ip, r3
+ 129 0068 04F8083C 		strb	r3, [r4, #-8]
+ 130 006c D7E7     		b	.L4
+ 131              	.LVL12:
+ 132              	.L11:
+ 133              		.loc 1 19 29 view .LVU35
+ 134              	.LBE3:
+ 135              	.LBE4:
+  20:hardware/dht11/src/dht11_decode.c ****         }
+  21:hardware/dht11/src/dht11_decode.c ****     }
+  22:hardware/dht11/src/dht11_decode.c **** 
+  23:hardware/dht11/src/dht11_decode.c ****     if ((uint8_t)(bytes[0] + bytes[1] + bytes[2] + bytes[3]) != bytes[4]) {
+ 136              		.loc 1 23 5 is_stmt 1 view .LVU36
+ 137              		.loc 1 23 24 is_stmt 0 view .LVU37
+ 138 006e 9DF80000 		ldrb	r0, [sp]	@ zero_extendqisi2
+ 139              		.loc 1 23 35 view .LVU38
+ 140 0072 9DF80130 		ldrb	r3, [sp, #1]	@ zero_extendqisi2
+ 141              		.loc 1 23 28 view .LVU39
+ 142 0076 0344     		add	r3, r3, r0
+ 143 0078 DBB2     		uxtb	r3, r3
+ 144              		.loc 1 23 46 view .LVU40
+ 145 007a 9DF80210 		ldrb	r1, [sp, #2]	@ zero_extendqisi2
+ 146              	.LVL13:
+ 147              		.loc 1 23 39 view .LVU41
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 4
+
+
+ 148 007e 0B44     		add	r3, r3, r1
+ 149 0080 DBB2     		uxtb	r3, r3
+ 150              		.loc 1 23 57 view .LVU42
+ 151 0082 9DF80340 		ldrb	r4, [sp, #3]	@ zero_extendqisi2
+ 152              		.loc 1 23 9 view .LVU43
+ 153 0086 2344     		add	r3, r3, r4
+ 154 0088 DBB2     		uxtb	r3, r3
+ 155              		.loc 1 23 70 view .LVU44
+ 156 008a 9DF80440 		ldrb	r4, [sp, #4]	@ zero_extendqisi2
+ 157              		.loc 1 23 8 view .LVU45
+ 158 008e A342     		cmp	r3, r4
+ 159 0090 0DD1     		bne	.L9
+  24:hardware/dht11/src/dht11_decode.c ****         return -3;
+  25:hardware/dht11/src/dht11_decode.c ****     }
+  26:hardware/dht11/src/dht11_decode.c **** 
+  27:hardware/dht11/src/dht11_decode.c ****     data->hum = bytes[0];
+ 160              		.loc 1 27 5 is_stmt 1 view .LVU46
+ 161              		.loc 1 27 15 is_stmt 0 view .LVU47
+ 162 0092 5080     		strh	r0, [r2, #2]	@ movhi
+  28:hardware/dht11/src/dht11_decode.c ****     data->temp = bytes[2];
+ 163              		.loc 1 28 5 is_stmt 1 view .LVU48
+ 164              		.loc 1 28 16 is_stmt 0 view .LVU49
+ 165 0094 1180     		strh	r1, [r2]	@ movhi
+  29:hardware/dht11/src/dht11_decode.c ****     return 0;
+ 166              		.loc 1 29 5 is_stmt 1 view .LVU50
+ 167              		.loc 1 29 12 is_stmt 0 view .LVU51
+ 168 0096 0020     		movs	r0, #0
+ 169              	.LVL14:
+ 170              	.L1:
+  30:hardware/dht11/src/dht11_decode.c **** }
+ 171              		.loc 1 30 1 view .LVU52
+ 172 0098 02B0     		add	sp, sp, #8
+ 173              	.LCFI2:
+ 174              		.cfi_remember_state
+ 175              		.cfi_def_cfa_offset 8
+ 176              		@ sp needed
+ 177 009a 10BD     		pop	{r4, pc}
+ 178              	.LVL15:
+ 179              	.L6:
+ 180              	.LCFI3:
+ 181              		.cfi_restore_state
+  10:hardware/dht11/src/dht11_decode.c ****     if (edge_count != DHT11_CAPTURE_EDGE_COUNT) return -2;
+ 182              		.loc 1 10 47 discriminator 3 view .LVU53
+ 183 009c 4FF0FF30 		mov	r0, #-1
+ 184              	.LVL16:
+  10:hardware/dht11/src/dht11_decode.c ****     if (edge_count != DHT11_CAPTURE_EDGE_COUNT) return -2;
+ 185              		.loc 1 10 47 discriminator 3 view .LVU54
+ 186 00a0 FAE7     		b	.L1
+ 187              	.LVL17:
+ 188              	.L7:
+  10:hardware/dht11/src/dht11_decode.c ****     if (edge_count != DHT11_CAPTURE_EDGE_COUNT) return -2;
+ 189              		.loc 1 10 47 discriminator 3 view .LVU55
+ 190 00a2 4FF0FF30 		mov	r0, #-1
+ 191              	.LVL18:
+  10:hardware/dht11/src/dht11_decode.c ****     if (edge_count != DHT11_CAPTURE_EDGE_COUNT) return -2;
+ 192              		.loc 1 10 47 discriminator 3 view .LVU56
+ 193 00a6 F7E7     		b	.L1
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 5
+
+
+ 194              	.LVL19:
+ 195              	.L8:
+  11:hardware/dht11/src/dht11_decode.c **** 
+ 196              		.loc 1 11 56 discriminator 1 view .LVU57
+ 197 00a8 6FF00100 		mvn	r0, #1
+ 198              	.LVL20:
+  11:hardware/dht11/src/dht11_decode.c **** 
+ 199              		.loc 1 11 56 discriminator 1 view .LVU58
+ 200 00ac F4E7     		b	.L1
+ 201              	.LVL21:
+ 202              	.L9:
+  24:hardware/dht11/src/dht11_decode.c ****     }
+ 203              		.loc 1 24 16 view .LVU59
+ 204 00ae 6FF00200 		mvn	r0, #2
+ 205 00b2 F1E7     		b	.L1
+ 206              		.cfi_endproc
+ 207              	.LFE3:
+ 209              		.text
+ 210              	.Letext0:
+ 211              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/lib/gcc/arm-none-eabi/13
+ 212              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 213              		.file 4 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 214              		.file 5 "hardware/dht11/inc/dht11.h"
+ 215              		.file 6 "software/inc/types.h"
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s 			page 6
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 dht11_decode.c
+C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s:19     .text.dht11_decode_capture:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccVO8XC7.s:25     .text.dht11_decode_capture:00000000 dht11_decode_capture
+
+NO UNDEFINED SYMBOLS

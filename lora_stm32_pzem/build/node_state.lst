@@ -1,4 +1,4 @@
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 1
 
 
    1              		.cpu cortex-m3
@@ -58,7 +58,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
    9:software/scr/node_state.c ****     state->limits.voltage_limit_v = 250U;
   47              		.loc 1 9 5 view .LVU5
   48              		.loc 1 9 35 is_stmt 0 view .LVU6
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 2
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 2
 
 
   49 000e FA23     		movs	r3, #250
@@ -118,7 +118,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
   98              	node_state_update_dht:
   99              	.LVL3:
  100              	.LFB4:
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 3
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 3
 
 
   17:software/scr/node_state.c **** 
@@ -178,7 +178,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  143              		.global	node_state_update_power
  144              		.syntax unified
  145              		.thumb
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 4
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 4
 
 
  146              		.thumb_func
@@ -238,7 +238,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  190              	.L12:
   41:software/scr/node_state.c ****     else state->sample.status |= ST_PZEM_FAIL;
   42:software/scr/node_state.c **** }
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 5
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 5
 
 
  191              		.loc 1 42 1 view .LVU55
@@ -298,7 +298,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  239              		.loc 1 47 19 view .LVU66
  240 000a 8CE80F00 		stm	ip, {r0, r1, r2, r3}
  241              	.LVL14:
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 6
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 6
 
 
  242              	.L16:
@@ -358,7 +358,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  286 0012 42F02002 		orr	r2, r2, #32
  287              	.LVL18:
  288              	.L20:
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 7
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 7
 
 
   60:software/scr/node_state.c ****     if (state->sample.current_ma >= state->limits.current_limit_ma)
@@ -418,7 +418,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
   67:software/scr/node_state.c ****         next |= ST_OVER_HUMIDITY;
  336              		.loc 1 67 9 is_stmt 1 view .LVU104
  337              		.loc 1 67 14 is_stmt 0 view .LVU105
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 8
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 8
 
 
  338 0046 42F08002 		orr	r2, r2, #128
@@ -478,7 +478,7 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  383              		.loc 1 77 8 is_stmt 0 view .LVU119
  384 0000 68B1     		cbz	r0, .L29
   76:software/scr/node_state.c ****     if (state == 0 || snapshot == 0) return;
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 9
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 9
 
 
  385              		.loc 1 76 1 view .LVU120
@@ -524,24 +524,24 @@ ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
  424              		.file 6 "software/inc/node_state.h"
  425              		.file 7 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/st
  426              		.file 8 "<built-in>"
-ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 10
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s 			page 10
 
 
 DEFINED SYMBOLS
                             *ABS*:00000000 node_state.c
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:19     .text.node_state_init:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:25     .text.node_state_init:00000000 node_state_init
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:87     .text.node_state_init:00000030 $d
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:92     .text.node_state_update_dht:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:98     .text.node_state_update_dht:00000000 node_state_update_dht
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:142    .text.node_state_update_power:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:148    .text.node_state_update_power:00000000 node_state_update_power
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:215    .text.node_state_apply_limits:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:221    .text.node_state_apply_limits:00000000 node_state_apply_limits
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:249    .text.node_state_evaluate:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:255    .text.node_state_evaluate:00000000 node_state_evaluate
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:369    .text.node_state_snapshot:00000000 $t
-C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:375    .text.node_state_snapshot:00000000 node_state_snapshot
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:19     .text.node_state_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:25     .text.node_state_init:00000000 node_state_init
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:87     .text.node_state_init:00000030 $d
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:92     .text.node_state_update_dht:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:98     .text.node_state_update_dht:00000000 node_state_update_dht
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:142    .text.node_state_update_power:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:148    .text.node_state_update_power:00000000 node_state_update_power
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:215    .text.node_state_apply_limits:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:221    .text.node_state_apply_limits:00000000 node_state_apply_limits
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:249    .text.node_state_evaluate:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:255    .text.node_state_evaluate:00000000 node_state_evaluate
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:369    .text.node_state_snapshot:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccIJ3Tri.s:375    .text.node_state_snapshot:00000000 node_state_snapshot
 
 UNDEFINED SYMBOLS
 memset

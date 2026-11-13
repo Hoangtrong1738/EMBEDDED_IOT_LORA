@@ -25,6 +25,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "node_lora.h"
+#include "dht11.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -188,6 +189,11 @@ void SysTick_Handler(void)
 void EXTI1_IRQHandler(void)
 {
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
+}
+
+void TIM2_IRQHandler(void)
+{
+  dht11_tim2_irq_handler();
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
