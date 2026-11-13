@@ -1,0 +1,231 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"delay.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "software/scr/delay.c"
+  18              		.section	.text.delay_init,"ax",%progbits
+  19              		.align	1
+  20              		.global	delay_init
+  21              		.syntax unified
+  22              		.thumb
+  23              		.thumb_func
+  25              	delay_init:
+  26              	.LFB68:
+   1:software/scr/delay.c **** #include "delay.h"
+   2:software/scr/delay.c **** #include "main.h"
+   3:software/scr/delay.c **** 
+   4:software/scr/delay.c **** static u32 cyc_per_us;
+   5:software/scr/delay.c **** void delay_init(void)
+   6:software/scr/delay.c **** {
+  27              		.loc 1 6 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+   7:software/scr/delay.c ****     cyc_per_us = SystemCoreClock / 1000000U;
+  32              		.loc 1 7 5 view .LVU1
+  33              		.loc 1 7 34 is_stmt 0 view .LVU2
+  34 0000 0B4B     		ldr	r3, .L2
+  35 0002 1B68     		ldr	r3, [r3]
+  36 0004 0B4A     		ldr	r2, .L2+4
+  37 0006 A2FB0323 		umull	r2, r3, r2, r3
+  38 000a 9B0C     		lsrs	r3, r3, #18
+  39              		.loc 1 7 16 view .LVU3
+  40 000c 0A4A     		ldr	r2, .L2+8
+  41 000e 1360     		str	r3, [r2]
+   8:software/scr/delay.c ****     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // Enable DWT
+  42              		.loc 1 8 5 is_stmt 1 view .LVU4
+  43              		.loc 1 8 14 is_stmt 0 view .LVU5
+  44 0010 0A4A     		ldr	r2, .L2+12
+  45 0012 D2F8FC30 		ldr	r3, [r2, #252]
+  46              		.loc 1 8 22 view .LVU6
+  47 0016 43F08073 		orr	r3, r3, #16777216
+  48 001a C2F8FC30 		str	r3, [r2, #252]
+   9:software/scr/delay.c ****     DWT->CYCCNT = 0; // Reset the counter
+  49              		.loc 1 9 5 is_stmt 1 view .LVU7
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s 			page 2
+
+
+  50              		.loc 1 9 17 is_stmt 0 view .LVU8
+  51 001e 084B     		ldr	r3, .L2+16
+  52 0020 0022     		movs	r2, #0
+  53 0022 5A60     		str	r2, [r3, #4]
+  10:software/scr/delay.c ****     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk; // Enable the counter
+  54              		.loc 1 10 5 is_stmt 1 view .LVU9
+  55              		.loc 1 10 8 is_stmt 0 view .LVU10
+  56 0024 1A68     		ldr	r2, [r3]
+  57              		.loc 1 10 15 view .LVU11
+  58 0026 42F00102 		orr	r2, r2, #1
+  59 002a 1A60     		str	r2, [r3]
+  11:software/scr/delay.c **** }
+  60              		.loc 1 11 1 view .LVU12
+  61 002c 7047     		bx	lr
+  62              	.L3:
+  63 002e 00BF     		.align	2
+  64              	.L2:
+  65 0030 00000000 		.word	SystemCoreClock
+  66 0034 83DE1B43 		.word	1125899907
+  67 0038 00000000 		.word	cyc_per_us
+  68 003c 00ED00E0 		.word	-536810240
+  69 0040 001000E0 		.word	-536866816
+  70              		.cfi_endproc
+  71              	.LFE68:
+  73              		.section	.text.delay_us,"ax",%progbits
+  74              		.align	1
+  75              		.global	delay_us
+  76              		.syntax unified
+  77              		.thumb
+  78              		.thumb_func
+  80              	delay_us:
+  81              	.LVL0:
+  82              	.LFB69:
+  12:software/scr/delay.c **** 
+  13:software/scr/delay.c **** void delay_us(u32 us)
+  14:software/scr/delay.c **** {
+  83              		.loc 1 14 1 is_stmt 1 view -0
+  84              		.cfi_startproc
+  85              		@ args = 0, pretend = 0, frame = 0
+  86              		@ frame_needed = 0, uses_anonymous_args = 0
+  87              		@ link register save eliminated.
+  15:software/scr/delay.c ****     u32 start = DWT->CYCCNT;
+  88              		.loc 1 15 5 view .LVU14
+  89              		.loc 1 15 9 is_stmt 0 view .LVU15
+  90 0000 054B     		ldr	r3, .L6
+  91 0002 5A68     		ldr	r2, [r3, #4]
+  92              	.LVL1:
+  16:software/scr/delay.c ****     u32 delay_ticks = us * cyc_per_us;
+  93              		.loc 1 16 5 is_stmt 1 view .LVU16
+  94              		.loc 1 16 26 is_stmt 0 view .LVU17
+  95 0004 054B     		ldr	r3, .L6+4
+  96 0006 1B68     		ldr	r3, [r3]
+  97              		.loc 1 16 9 view .LVU18
+  98 0008 03FB00F0 		mul	r0, r3, r0
+  99              	.LVL2:
+  17:software/scr/delay.c ****     while ((DWT->CYCCNT - start) < delay_ticks);
+ 100              		.loc 1 17 5 is_stmt 1 view .LVU19
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s 			page 3
+
+
+ 101              	.L5:
+ 102              		.loc 1 17 34 discriminator 1 view .LVU20
+ 103              		.loc 1 17 16 is_stmt 0 discriminator 1 view .LVU21
+ 104 000c 024B     		ldr	r3, .L6
+ 105 000e 5B68     		ldr	r3, [r3, #4]
+ 106              		.loc 1 17 25 discriminator 1 view .LVU22
+ 107 0010 9B1A     		subs	r3, r3, r2
+ 108              		.loc 1 17 34 discriminator 1 view .LVU23
+ 109 0012 8342     		cmp	r3, r0
+ 110 0014 FAD3     		bcc	.L5
+  18:software/scr/delay.c **** }
+ 111              		.loc 1 18 1 view .LVU24
+ 112 0016 7047     		bx	lr
+ 113              	.L7:
+ 114              		.align	2
+ 115              	.L6:
+ 116 0018 001000E0 		.word	-536866816
+ 117 001c 00000000 		.word	cyc_per_us
+ 118              		.cfi_endproc
+ 119              	.LFE69:
+ 121              		.section	.text.delay_ms,"ax",%progbits
+ 122              		.align	1
+ 123              		.global	delay_ms
+ 124              		.syntax unified
+ 125              		.thumb
+ 126              		.thumb_func
+ 128              	delay_ms:
+ 129              	.LVL3:
+ 130              	.LFB70:
+  19:software/scr/delay.c **** 
+  20:software/scr/delay.c **** void delay_ms(u32 ms)
+  21:software/scr/delay.c **** {
+ 131              		.loc 1 21 1 is_stmt 1 view -0
+ 132              		.cfi_startproc
+ 133              		@ args = 0, pretend = 0, frame = 0
+ 134              		@ frame_needed = 0, uses_anonymous_args = 0
+ 135              		.loc 1 21 1 is_stmt 0 view .LVU26
+ 136 0000 10B5     		push	{r4, lr}
+ 137              	.LCFI0:
+ 138              		.cfi_def_cfa_offset 8
+ 139              		.cfi_offset 4, -8
+ 140              		.cfi_offset 14, -4
+  22:software/scr/delay.c ****     while (ms--)
+ 141              		.loc 1 22 5 is_stmt 1 view .LVU27
+ 142              		.loc 1 22 11 is_stmt 0 view .LVU28
+ 143 0002 04E0     		b	.L9
+ 144              	.LVL4:
+ 145              	.L10:
+  23:software/scr/delay.c ****     {
+  24:software/scr/delay.c ****         delay_us(1000);
+ 146              		.loc 1 24 9 is_stmt 1 view .LVU29
+ 147 0004 4FF47A70 		mov	r0, #1000
+ 148 0008 FFF7FEFF 		bl	delay_us
+ 149              	.LVL5:
+  22:software/scr/delay.c ****     while (ms--)
+ 150              		.loc 1 22 14 is_stmt 0 view .LVU30
+ 151 000c 2046     		mov	r0, r4
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s 			page 4
+
+
+ 152              	.LVL6:
+ 153              	.L9:
+  22:software/scr/delay.c ****     while (ms--)
+ 154              		.loc 1 22 12 is_stmt 1 view .LVU31
+  22:software/scr/delay.c ****     while (ms--)
+ 155              		.loc 1 22 14 is_stmt 0 view .LVU32
+ 156 000e 441E     		subs	r4, r0, #1
+ 157              	.LVL7:
+  22:software/scr/delay.c ****     while (ms--)
+ 158              		.loc 1 22 12 view .LVU33
+ 159 0010 0028     		cmp	r0, #0
+ 160 0012 F7D1     		bne	.L10
+  25:software/scr/delay.c ****     }
+  26:software/scr/delay.c **** }...
+ 161              		.loc 1 26 1 view .LVU34
+ 162 0014 10BD     		pop	{r4, pc}
+ 163              		.loc 1 26 1 view .LVU35
+ 164              		.cfi_endproc
+ 165              	.LFE70:
+ 167              		.section	.bss.cyc_per_us,"aw",%nobits
+ 168              		.align	2
+ 171              	cyc_per_us:
+ 172 0000 00000000 		.space	4
+ 173              		.text
+ 174              	.Letext0:
+ 175              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 176              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 177              		.file 4 "Drivers/CMSIS/Include/core_cm3.h"
+ 178              		.file 5 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/system_stm32f1xx.h"
+ 179              		.file 6 "software/inc/types.h"
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s 			page 5
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 delay.c
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:19     .text.delay_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:25     .text.delay_init:00000000 delay_init
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:65     .text.delay_init:00000030 $d
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:171    .bss.cyc_per_us:00000000 cyc_per_us
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:74     .text.delay_us:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:80     .text.delay_us:00000000 delay_us
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:116    .text.delay_us:00000018 $d
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:122    .text.delay_ms:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:128    .text.delay_ms:00000000 delay_ms
+C:\Users\Admin\AppData\Local\Temp\ccZbqdbm.s:168    .bss.cyc_per_us:00000000 $d
+
+UNDEFINED SYMBOLS
+SystemCoreClock

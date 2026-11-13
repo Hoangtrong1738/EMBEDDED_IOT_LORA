@@ -1,0 +1,227 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"telemetry_source.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "software/scr/telemetry_source.c"
+  18              		.section	.text.telemetry_source_init,"ax",%progbits
+  19              		.align	1
+  20              		.global	telemetry_source_init
+  21              		.syntax unified
+  22              		.thumb
+  23              		.thumb_func
+  25              	telemetry_source_init:
+  26              	.LFB0:
+   1:software/scr/telemetry_source.c **** #include "telemetry_source.h"
+   2:software/scr/telemetry_source.c **** 
+   3:software/scr/telemetry_source.c **** /* Offline test profile: normal values followed by threshold violations. */
+   4:software/scr/telemetry_source.c **** static const telemetry_sample_t samples[] = {
+   5:software/scr/telemetry_source.c ****     {230U, 1250U, 287500U, 100U, 25, 50U, 0U},
+   6:software/scr/telemetry_source.c ****     {231U, 1600U, 369600U, 101U, 27, 55U, 0U},
+   7:software/scr/telemetry_source.c ****     {228U, 9000U, 2052000U, 102U, 32, 65U, 0U},
+   8:software/scr/telemetry_source.c ****     {251U, 10500U, 2415000U, 103U, 61, 91U, 0U},
+   9:software/scr/telemetry_source.c ****     {235U, 2200U, 517000U, 104U, 29, 58U, 0U},
+  10:software/scr/telemetry_source.c **** };
+  11:software/scr/telemetry_source.c **** 
+  12:software/scr/telemetry_source.c **** static uint8_t sample_index;
+  13:software/scr/telemetry_source.c **** 
+  14:software/scr/telemetry_source.c **** void telemetry_source_init(void)
+  15:software/scr/telemetry_source.c **** {
+  27              		.loc 1 15 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  16:software/scr/telemetry_source.c ****     sample_index = 0U;
+  32              		.loc 1 16 5 view .LVU1
+  33              		.loc 1 16 18 is_stmt 0 view .LVU2
+  34 0000 014B     		ldr	r3, .L2
+  35 0002 0022     		movs	r2, #0
+  36 0004 1A70     		strb	r2, [r3]
+  17:software/scr/telemetry_source.c **** }
+  37              		.loc 1 17 1 view .LVU3
+  38 0006 7047     		bx	lr
+  39              	.L3:
+  40              		.align	2
+  41              	.L2:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s 			page 2
+
+
+  42 0008 00000000 		.word	sample_index
+  43              		.cfi_endproc
+  44              	.LFE0:
+  46              		.section	.text.telemetry_source_next,"ax",%progbits
+  47              		.align	1
+  48              		.global	telemetry_source_next
+  49              		.syntax unified
+  50              		.thumb
+  51              		.thumb_func
+  53              	telemetry_source_next:
+  54              	.LVL0:
+  55              	.LFB1:
+  18:software/scr/telemetry_source.c **** 
+  19:software/scr/telemetry_source.c **** void telemetry_source_next(telemetry_sample_t *sample)
+  20:software/scr/telemetry_source.c **** {
+  56              		.loc 1 20 1 is_stmt 1 view -0
+  57              		.cfi_startproc
+  58              		@ args = 0, pretend = 0, frame = 0
+  59              		@ frame_needed = 0, uses_anonymous_args = 0
+  21:software/scr/telemetry_source.c ****     if (sample == 0) {
+  60              		.loc 1 21 5 view .LVU5
+  61              		.loc 1 21 8 is_stmt 0 view .LVU6
+  62 0000 D8B1     		cbz	r0, .L7
+  20:software/scr/telemetry_source.c ****     if (sample == 0) {
+  63              		.loc 1 20 1 view .LVU7
+  64 0002 30B5     		push	{r4, r5, lr}
+  65              	.LCFI0:
+  66              		.cfi_def_cfa_offset 12
+  67              		.cfi_offset 4, -12
+  68              		.cfi_offset 5, -8
+  69              		.cfi_offset 14, -4
+  70 0004 8446     		mov	ip, r0
+  22:software/scr/telemetry_source.c ****         return;
+  23:software/scr/telemetry_source.c ****     }
+  24:software/scr/telemetry_source.c **** 
+  25:software/scr/telemetry_source.c ****     *sample = samples[sample_index];
+  71              		.loc 1 25 5 is_stmt 1 view .LVU8
+  72              		.loc 1 25 22 is_stmt 0 view .LVU9
+  73 0006 0D4D     		ldr	r5, .L10
+  74 0008 2C78     		ldrb	r4, [r5]	@ zero_extendqisi2
+  75              		.loc 1 25 13 view .LVU10
+  76 000a 04EB4402 		add	r2, r4, r4, lsl #1
+  77 000e 0C4B     		ldr	r3, .L10+4
+  78 0010 03EBC20E 		add	lr, r3, r2, lsl #3
+  79 0014 BEE80F00 		ldmia	lr!, {r0, r1, r2, r3}
+  80              	.LVL1:
+  81              		.loc 1 25 13 view .LVU11
+  82 0018 ACE80F00 		stmia	ip!, {r0, r1, r2, r3}
+  83              	.LVL2:
+  84              		.loc 1 25 13 view .LVU12
+  85 001c 9EE80300 		ldm	lr, {r0, r1}
+  86 0020 8CE80300 		stm	ip, {r0, r1}
+  26:software/scr/telemetry_source.c ****     sample_index = (uint8_t)((sample_index + 1U) %
+  87              		.loc 1 26 5 is_stmt 1 view .LVU13
+  88              		.loc 1 26 44 is_stmt 0 view .LVU14
+  89 0024 0134     		adds	r4, r4, #1
+  90              		.loc 1 26 50 view .LVU15
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s 			page 3
+
+
+  91 0026 074B     		ldr	r3, .L10+8
+  92 0028 A3FB0423 		umull	r2, r3, r3, r4
+  93 002c 03F4FE72 		and	r2, r3, #508
+  94 0030 02EB9303 		add	r3, r2, r3, lsr #2
+  95 0034 E41A     		subs	r4, r4, r3
+  96              		.loc 1 26 18 view .LVU16
+  97 0036 2C70     		strb	r4, [r5]
+  27:software/scr/telemetry_source.c ****                              (sizeof(samples) / sizeof(samples[0])));
+  28:software/scr/telemetry_source.c **** }
+  98              		.loc 1 28 1 view .LVU17
+  99 0038 30BD     		pop	{r4, r5, pc}
+ 100              	.LVL3:
+ 101              	.L7:
+ 102              	.LCFI1:
+ 103              		.cfi_def_cfa_offset 0
+ 104              		.cfi_restore 4
+ 105              		.cfi_restore 5
+ 106              		.cfi_restore 14
+ 107              		.loc 1 28 1 view .LVU18
+ 108 003a 7047     		bx	lr
+ 109              	.L11:
+ 110              		.align	2
+ 111              	.L10:
+ 112 003c 00000000 		.word	sample_index
+ 113 0040 00000000 		.word	samples
+ 114 0044 CDCCCCCC 		.word	-858993459
+ 115              		.cfi_endproc
+ 116              	.LFE1:
+ 118              		.section	.bss.sample_index,"aw",%nobits
+ 121              	sample_index:
+ 122 0000 00       		.space	1
+ 123              		.section	.rodata.samples,"a"
+ 124              		.align	2
+ 127              	samples:
+ 128 0000 E600     		.short	230
+ 129 0002 0000     		.space	2
+ 130 0004 E2040000 		.word	1250
+ 131 0008 0C630400 		.word	287500
+ 132 000c 64000000 		.word	100
+ 133 0010 1900     		.short	25
+ 134 0012 3200     		.short	50
+ 135 0014 00       		.byte	0
+ 136 0015 000000   		.space	3
+ 137 0018 E700     		.short	231
+ 138 001a 0000     		.space	2
+ 139 001c 40060000 		.word	1600
+ 140 0020 C0A30500 		.word	369600
+ 141 0024 65000000 		.word	101
+ 142 0028 1B00     		.short	27
+ 143 002a 3700     		.short	55
+ 144 002c 00       		.byte	0
+ 145 002d 000000   		.space	3
+ 146 0030 E400     		.short	228
+ 147 0032 0000     		.space	2
+ 148 0034 28230000 		.word	9000
+ 149 0038 A04F1F00 		.word	2052000
+ 150 003c 66000000 		.word	102
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s 			page 4
+
+
+ 151 0040 2000     		.short	32
+ 152 0042 4100     		.short	65
+ 153 0044 00       		.byte	0
+ 154 0045 000000   		.space	3
+ 155 0048 FB00     		.short	251
+ 156 004a 0000     		.space	2
+ 157 004c 04290000 		.word	10500
+ 158 0050 98D92400 		.word	2415000
+ 159 0054 67000000 		.word	103
+ 160 0058 3D00     		.short	61
+ 161 005a 5B00     		.short	91
+ 162 005c 00       		.byte	0
+ 163 005d 000000   		.space	3
+ 164 0060 EB00     		.short	235
+ 165 0062 0000     		.space	2
+ 166 0064 98080000 		.word	2200
+ 167 0068 88E30700 		.word	517000
+ 168 006c 68000000 		.word	104
+ 169 0070 1D00     		.short	29
+ 170 0072 3A00     		.short	58
+ 171 0074 00       		.byte	0
+ 172 0075 000000   		.space	3
+ 173              		.text
+ 174              	.Letext0:
+ 175              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 176              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 177              		.file 4 "software/inc/telemetry_source.h"
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s 			page 5
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 telemetry_source.c
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:19     .text.telemetry_source_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:25     .text.telemetry_source_init:00000000 telemetry_source_init
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:42     .text.telemetry_source_init:00000008 $d
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:121    .bss.sample_index:00000000 sample_index
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:47     .text.telemetry_source_next:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:53     .text.telemetry_source_next:00000000 telemetry_source_next
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:112    .text.telemetry_source_next:0000003c $d
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:127    .rodata.samples:00000000 samples
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:122    .bss.sample_index:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccKpmEA5.s:124    .rodata.samples:00000000 $d
+
+NO UNDEFINED SYMBOLS

@@ -1,0 +1,547 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"node_state.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "software/scr/node_state.c"
+  18              		.section	.text.node_state_init,"ax",%progbits
+  19              		.align	1
+  20              		.global	node_state_init
+  21              		.syntax unified
+  22              		.thumb
+  23              		.thumb_func
+  25              	node_state_init:
+  26              	.LVL0:
+  27              	.LFB3:
+   1:software/scr/node_state.c **** #include "node_state.h"
+   2:software/scr/node_state.c **** 
+   3:software/scr/node_state.c **** #include <string.h>
+   4:software/scr/node_state.c **** 
+   5:software/scr/node_state.c **** void node_state_init(node_state_t *state)
+   6:software/scr/node_state.c **** {
+  28              		.loc 1 6 1 view -0
+  29              		.cfi_startproc
+  30              		@ args = 0, pretend = 0, frame = 0
+  31              		@ frame_needed = 0, uses_anonymous_args = 0
+   7:software/scr/node_state.c ****     if (state == 0) return;
+  32              		.loc 1 7 5 view .LVU1
+  33              		.loc 1 7 8 is_stmt 0 view .LVU2
+  34 0000 A8B1     		cbz	r0, .L4
+   6:software/scr/node_state.c ****     if (state == 0) return;
+  35              		.loc 1 6 1 view .LVU3
+  36 0002 10B5     		push	{r4, lr}
+  37              	.LCFI0:
+  38              		.cfi_def_cfa_offset 8
+  39              		.cfi_offset 4, -8
+  40              		.cfi_offset 14, -4
+  41 0004 0446     		mov	r4, r0
+   8:software/scr/node_state.c ****     memset(state, 0, sizeof(*state));
+  42              		.loc 1 8 5 is_stmt 1 view .LVU4
+  43 0006 2C22     		movs	r2, #44
+  44 0008 0021     		movs	r1, #0
+  45 000a FFF7FEFF 		bl	memset
+  46              	.LVL1:
+   9:software/scr/node_state.c ****     state->limits.voltage_limit_v = 250U;
+  47              		.loc 1 9 5 view .LVU5
+  48              		.loc 1 9 35 is_stmt 0 view .LVU6
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 2
+
+
+  49 000e FA23     		movs	r3, #250
+  50 0010 2383     		strh	r3, [r4, #24]	@ movhi
+  10:software/scr/node_state.c ****     state->limits.current_limit_ma = 10000U;
+  51              		.loc 1 10 5 is_stmt 1 view .LVU7
+  52              		.loc 1 10 36 is_stmt 0 view .LVU8
+  53 0012 42F21073 		movw	r3, #10000
+  54 0016 E361     		str	r3, [r4, #28]
+  11:software/scr/node_state.c ****     state->limits.power_limit_mw = 2000000U;
+  55              		.loc 1 11 5 is_stmt 1 view .LVU9
+  56              		.loc 1 11 34 is_stmt 0 view .LVU10
+  57 0018 054B     		ldr	r3, .L7
+  58 001a 2362     		str	r3, [r4, #32]
+  12:software/scr/node_state.c ****     state->limits.temperature_limit_c = 60;
+  59              		.loc 1 12 5 is_stmt 1 view .LVU11
+  60              		.loc 1 12 39 is_stmt 0 view .LVU12
+  61 001c 3C23     		movs	r3, #60
+  62 001e A384     		strh	r3, [r4, #36]	@ movhi
+  13:software/scr/node_state.c ****     state->limits.humidity_limit_percent = 90U;
+  63              		.loc 1 13 5 is_stmt 1 view .LVU13
+  64              		.loc 1 13 42 is_stmt 0 view .LVU14
+  65 0020 5A23     		movs	r3, #90
+  66 0022 E384     		strh	r3, [r4, #38]	@ movhi
+  14:software/scr/node_state.c ****     state->sample.status = ST_DHT_FAIL | ST_PZEM_FAIL;
+  67              		.loc 1 14 5 is_stmt 1 view .LVU15
+  68              		.loc 1 14 26 is_stmt 0 view .LVU16
+  69 0024 1423     		movs	r3, #20
+  70 0026 2375     		strb	r3, [r4, #20]
+  15:software/scr/node_state.c ****     state->published_status = state->sample.status;
+  71              		.loc 1 15 5 is_stmt 1 view .LVU17
+  72              		.loc 1 15 29 is_stmt 0 view .LVU18
+  73 0028 84F82830 		strb	r3, [r4, #40]
+  16:software/scr/node_state.c **** }
+  74              		.loc 1 16 1 view .LVU19
+  75 002c 10BD     		pop	{r4, pc}
+  76              	.LVL2:
+  77              	.L4:
+  78              	.LCFI1:
+  79              		.cfi_def_cfa_offset 0
+  80              		.cfi_restore 4
+  81              		.cfi_restore 14
+  82              		.loc 1 16 1 view .LVU20
+  83 002e 7047     		bx	lr
+  84              	.L8:
+  85              		.align	2
+  86              	.L7:
+  87 0030 80841E00 		.word	2000000
+  88              		.cfi_endproc
+  89              	.LFE3:
+  91              		.section	.text.node_state_update_dht,"ax",%progbits
+  92              		.align	1
+  93              		.global	node_state_update_dht
+  94              		.syntax unified
+  95              		.thumb
+  96              		.thumb_func
+  98              	node_state_update_dht:
+  99              	.LVL3:
+ 100              	.LFB4:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 3
+
+
+  17:software/scr/node_state.c **** 
+  18:software/scr/node_state.c **** void node_state_update_dht(node_state_t *state, u8 valid, i16 temperature_c,
+  19:software/scr/node_state.c ****                            u16 humidity_percent)
+  20:software/scr/node_state.c **** {
+ 101              		.loc 1 20 1 is_stmt 1 view -0
+ 102              		.cfi_startproc
+ 103              		@ args = 0, pretend = 0, frame = 0
+ 104              		@ frame_needed = 0, uses_anonymous_args = 0
+ 105              		@ link register save eliminated.
+  21:software/scr/node_state.c ****     if (state == 0) return;
+ 106              		.loc 1 21 5 view .LVU22
+ 107              		.loc 1 21 8 is_stmt 0 view .LVU23
+ 108 0000 58B1     		cbz	r0, .L9
+  22:software/scr/node_state.c ****     if (valid) {
+ 109              		.loc 1 22 5 is_stmt 1 view .LVU24
+ 110              		.loc 1 22 8 is_stmt 0 view .LVU25
+ 111 0002 31B1     		cbz	r1, .L11
+  23:software/scr/node_state.c ****         state->sample.temperature_c = temperature_c;
+ 112              		.loc 1 23 9 is_stmt 1 view .LVU26
+ 113              		.loc 1 23 37 is_stmt 0 view .LVU27
+ 114 0004 0282     		strh	r2, [r0, #16]	@ movhi
+  24:software/scr/node_state.c ****         state->sample.humidity_percent = humidity_percent;
+ 115              		.loc 1 24 9 is_stmt 1 view .LVU28
+ 116              		.loc 1 24 40 is_stmt 0 view .LVU29
+ 117 0006 4382     		strh	r3, [r0, #18]	@ movhi
+  25:software/scr/node_state.c ****         state->sample.status &= (u8)~ST_DHT_FAIL;
+ 118              		.loc 1 25 9 is_stmt 1 view .LVU30
+ 119              		.loc 1 25 22 is_stmt 0 view .LVU31
+ 120 0008 037D     		ldrb	r3, [r0, #20]	@ zero_extendqisi2
+ 121              	.LVL4:
+ 122              		.loc 1 25 30 view .LVU32
+ 123 000a 23F01003 		bic	r3, r3, #16
+ 124 000e 0375     		strb	r3, [r0, #20]
+ 125 0010 7047     		bx	lr
+ 126              	.LVL5:
+ 127              	.L11:
+  26:software/scr/node_state.c ****     } else {
+  27:software/scr/node_state.c ****         state->sample.status |= ST_DHT_FAIL;
+ 128              		.loc 1 27 9 is_stmt 1 view .LVU33
+ 129              		.loc 1 27 22 is_stmt 0 view .LVU34
+ 130 0012 037D     		ldrb	r3, [r0, #20]	@ zero_extendqisi2
+ 131              	.LVL6:
+ 132              		.loc 1 27 30 view .LVU35
+ 133 0014 43F01003 		orr	r3, r3, #16
+ 134 0018 0375     		strb	r3, [r0, #20]
+ 135              	.L9:
+  28:software/scr/node_state.c ****     }
+  29:software/scr/node_state.c **** }
+ 136              		.loc 1 29 1 view .LVU36
+ 137 001a 7047     		bx	lr
+ 138              		.cfi_endproc
+ 139              	.LFE4:
+ 141              		.section	.text.node_state_update_power,"ax",%progbits
+ 142              		.align	1
+ 143              		.global	node_state_update_power
+ 144              		.syntax unified
+ 145              		.thumb
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 4
+
+
+ 146              		.thumb_func
+ 148              	node_state_update_power:
+ 149              	.LVL7:
+ 150              	.LFB5:
+  30:software/scr/node_state.c **** 
+  31:software/scr/node_state.c **** void node_state_update_power(node_state_t *state, u16 voltage_v,
+  32:software/scr/node_state.c ****                              u32 current_ma, u32 power_mw, u32 energy_wh,
+  33:software/scr/node_state.c ****                              u8 valid)
+  34:software/scr/node_state.c **** {
+ 151              		.loc 1 34 1 is_stmt 1 view -0
+ 152              		.cfi_startproc
+ 153              		@ args = 8, pretend = 0, frame = 0
+ 154              		@ frame_needed = 0, uses_anonymous_args = 0
+ 155              		@ link register save eliminated.
+ 156              		.loc 1 34 1 is_stmt 0 view .LVU38
+ 157 0000 10B4     		push	{r4}
+ 158              	.LCFI2:
+ 159              		.cfi_def_cfa_offset 4
+ 160              		.cfi_offset 4, -4
+ 161 0002 9DF80840 		ldrb	r4, [sp, #8]	@ zero_extendqisi2
+  35:software/scr/node_state.c ****     if (state == 0) return;
+ 162              		.loc 1 35 5 is_stmt 1 view .LVU39
+ 163              		.loc 1 35 8 is_stmt 0 view .LVU40
+ 164 0006 48B1     		cbz	r0, .L12
+  36:software/scr/node_state.c ****     state->sample.voltage_v = voltage_v;
+ 165              		.loc 1 36 5 is_stmt 1 view .LVU41
+ 166              		.loc 1 36 29 is_stmt 0 view .LVU42
+ 167 0008 0180     		strh	r1, [r0]	@ movhi
+  37:software/scr/node_state.c ****     state->sample.current_ma = current_ma;
+ 168              		.loc 1 37 5 is_stmt 1 view .LVU43
+ 169              		.loc 1 37 30 is_stmt 0 view .LVU44
+ 170 000a 4260     		str	r2, [r0, #4]
+  38:software/scr/node_state.c ****     state->sample.power_mw = power_mw;
+ 171              		.loc 1 38 5 is_stmt 1 view .LVU45
+ 172              		.loc 1 38 28 is_stmt 0 view .LVU46
+ 173 000c 8360     		str	r3, [r0, #8]
+  39:software/scr/node_state.c ****     state->sample.energy_wh = energy_wh;
+ 174              		.loc 1 39 5 is_stmt 1 view .LVU47
+ 175              		.loc 1 39 29 is_stmt 0 view .LVU48
+ 176 000e 019B     		ldr	r3, [sp, #4]
+ 177              	.LVL8:
+ 178              		.loc 1 39 29 view .LVU49
+ 179 0010 C360     		str	r3, [r0, #12]
+  40:software/scr/node_state.c ****     if (valid) state->sample.status &= (u8)~ST_PZEM_FAIL;
+ 180              		.loc 1 40 5 is_stmt 1 view .LVU50
+ 181              		.loc 1 40 8 is_stmt 0 view .LVU51
+ 182 0012 2CB1     		cbz	r4, .L14
+ 183              		.loc 1 40 16 is_stmt 1 discriminator 1 view .LVU52
+ 184              		.loc 1 40 29 is_stmt 0 discriminator 1 view .LVU53
+ 185 0014 037D     		ldrb	r3, [r0, #20]	@ zero_extendqisi2
+ 186              		.loc 1 40 37 discriminator 1 view .LVU54
+ 187 0016 23F00403 		bic	r3, r3, #4
+ 188 001a 0375     		strb	r3, [r0, #20]
+ 189              	.LVL9:
+ 190              	.L12:
+  41:software/scr/node_state.c ****     else state->sample.status |= ST_PZEM_FAIL;
+  42:software/scr/node_state.c **** }
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 5
+
+
+ 191              		.loc 1 42 1 view .LVU55
+ 192 001c 10BC     		pop	{r4}
+ 193              	.LCFI3:
+ 194              		.cfi_remember_state
+ 195              		.cfi_restore 4
+ 196              		.cfi_def_cfa_offset 0
+ 197              	.LVL10:
+ 198              		.loc 1 42 1 view .LVU56
+ 199 001e 7047     		bx	lr
+ 200              	.LVL11:
+ 201              	.L14:
+ 202              	.LCFI4:
+ 203              		.cfi_restore_state
+  41:software/scr/node_state.c ****     else state->sample.status |= ST_PZEM_FAIL;
+ 204              		.loc 1 41 10 is_stmt 1 view .LVU57
+  41:software/scr/node_state.c ****     else state->sample.status |= ST_PZEM_FAIL;
+ 205              		.loc 1 41 23 is_stmt 0 view .LVU58
+ 206 0020 037D     		ldrb	r3, [r0, #20]	@ zero_extendqisi2
+  41:software/scr/node_state.c ****     else state->sample.status |= ST_PZEM_FAIL;
+ 207              		.loc 1 41 31 view .LVU59
+ 208 0022 43F00403 		orr	r3, r3, #4
+ 209 0026 0375     		strb	r3, [r0, #20]
+ 210 0028 F8E7     		b	.L12
+ 211              		.cfi_endproc
+ 212              	.LFE5:
+ 214              		.section	.text.node_state_apply_limits,"ax",%progbits
+ 215              		.align	1
+ 216              		.global	node_state_apply_limits
+ 217              		.syntax unified
+ 218              		.thumb
+ 219              		.thumb_func
+ 221              	node_state_apply_limits:
+ 222              	.LVL12:
+ 223              	.LFB6:
+  43:software/scr/node_state.c **** 
+  44:software/scr/node_state.c **** void node_state_apply_limits(node_state_t *state, const node_limits_t *limits)
+  45:software/scr/node_state.c **** {
+ 224              		.loc 1 45 1 is_stmt 1 view -0
+ 225              		.cfi_startproc
+ 226              		@ args = 0, pretend = 0, frame = 0
+ 227              		@ frame_needed = 0, uses_anonymous_args = 0
+ 228              		@ link register save eliminated.
+  46:software/scr/node_state.c ****     if (state == 0 || limits == 0) return;
+ 229              		.loc 1 46 5 view .LVU61
+ 230              		.loc 1 46 8 is_stmt 0 view .LVU62
+ 231 0000 28B1     		cbz	r0, .L16
+ 232              		.loc 1 46 20 discriminator 2 view .LVU63
+ 233 0002 21B1     		cbz	r1, .L16
+  47:software/scr/node_state.c ****     state->limits = *limits;
+ 234              		.loc 1 47 5 is_stmt 1 view .LVU64
+ 235              		.loc 1 47 19 is_stmt 0 view .LVU65
+ 236 0004 00F1180C 		add	ip, r0, #24
+ 237 0008 0FC9     		ldm	r1, {r0, r1, r2, r3}
+ 238              	.LVL13:
+ 239              		.loc 1 47 19 view .LVU66
+ 240 000a 8CE80F00 		stm	ip, {r0, r1, r2, r3}
+ 241              	.LVL14:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 6
+
+
+ 242              	.L16:
+  48:software/scr/node_state.c **** }
+ 243              		.loc 1 48 1 view .LVU67
+ 244 000e 7047     		bx	lr
+ 245              		.cfi_endproc
+ 246              	.LFE6:
+ 248              		.section	.text.node_state_evaluate,"ax",%progbits
+ 249              		.align	1
+ 250              		.global	node_state_evaluate
+ 251              		.syntax unified
+ 252              		.thumb
+ 253              		.thumb_func
+ 255              	node_state_evaluate:
+ 256              	.LVL15:
+ 257              	.LFB7:
+  49:software/scr/node_state.c **** 
+  50:software/scr/node_state.c **** u8 node_state_evaluate(node_state_t *state)
+  51:software/scr/node_state.c **** {
+ 258              		.loc 1 51 1 is_stmt 1 view -0
+ 259              		.cfi_startproc
+ 260              		@ args = 0, pretend = 0, frame = 0
+ 261              		@ frame_needed = 0, uses_anonymous_args = 0
+ 262              		@ link register save eliminated.
+  52:software/scr/node_state.c ****     u8 next;
+ 263              		.loc 1 52 5 view .LVU69
+  53:software/scr/node_state.c ****     u8 changed;
+ 264              		.loc 1 53 5 view .LVU70
+  54:software/scr/node_state.c ****     if (state == 0) return 0U;
+ 265              		.loc 1 54 5 view .LVU71
+ 266              		.loc 1 54 8 is_stmt 0 view .LVU72
+ 267 0000 0346     		mov	r3, r0
+ 268 0002 58B3     		cbz	r0, .L25
+  55:software/scr/node_state.c **** 
+  56:software/scr/node_state.c ****     next = state->sample.status &
+ 269              		.loc 1 56 5 is_stmt 1 view .LVU73
+ 270              		.loc 1 56 25 is_stmt 0 view .LVU74
+ 271 0004 027D     		ldrb	r2, [r0, #20]	@ zero_extendqisi2
+ 272              		.loc 1 56 10 view .LVU75
+ 273 0006 02F01C02 		and	r2, r2, #28
+ 274              	.LVL16:
+  57:software/scr/node_state.c ****            (ST_PZEM_FAIL | ST_WDG_RESET | ST_DHT_FAIL);
+  58:software/scr/node_state.c ****     if (state->sample.voltage_v >= state->limits.voltage_limit_v)
+ 275              		.loc 1 58 5 is_stmt 1 view .LVU76
+ 276              		.loc 1 58 22 is_stmt 0 view .LVU77
+ 277 000a 0088     		ldrh	r0, [r0]
+ 278              	.LVL17:
+ 279              		.loc 1 58 49 view .LVU78
+ 280 000c 198B     		ldrh	r1, [r3, #24]
+ 281              		.loc 1 58 8 view .LVU79
+ 282 000e 8842     		cmp	r0, r1
+ 283 0010 01D3     		bcc	.L20
+  59:software/scr/node_state.c ****         next |= ST_OVER_VOLTAGE;
+ 284              		.loc 1 59 9 is_stmt 1 view .LVU80
+ 285              		.loc 1 59 14 is_stmt 0 view .LVU81
+ 286 0012 42F02002 		orr	r2, r2, #32
+ 287              	.LVL18:
+ 288              	.L20:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 7
+
+
+  60:software/scr/node_state.c ****     if (state->sample.current_ma >= state->limits.current_limit_ma)
+ 289              		.loc 1 60 5 is_stmt 1 view .LVU82
+ 290              		.loc 1 60 22 is_stmt 0 view .LVU83
+ 291 0016 5868     		ldr	r0, [r3, #4]
+ 292              		.loc 1 60 50 view .LVU84
+ 293 0018 D969     		ldr	r1, [r3, #28]
+ 294              		.loc 1 60 8 view .LVU85
+ 295 001a 8842     		cmp	r0, r1
+ 296 001c 01D3     		bcc	.L21
+  61:software/scr/node_state.c ****         next |= ST_OVER_CURRENT;
+ 297              		.loc 1 61 9 is_stmt 1 view .LVU86
+ 298              		.loc 1 61 14 is_stmt 0 view .LVU87
+ 299 001e 42F00102 		orr	r2, r2, #1
+ 300              	.LVL19:
+ 301              	.L21:
+  62:software/scr/node_state.c ****     if (state->sample.power_mw >= state->limits.power_limit_mw)
+ 302              		.loc 1 62 5 is_stmt 1 view .LVU88
+ 303              		.loc 1 62 22 is_stmt 0 view .LVU89
+ 304 0022 9868     		ldr	r0, [r3, #8]
+ 305              		.loc 1 62 48 view .LVU90
+ 306 0024 196A     		ldr	r1, [r3, #32]
+ 307              		.loc 1 62 8 view .LVU91
+ 308 0026 8842     		cmp	r0, r1
+ 309 0028 01D3     		bcc	.L22
+  63:software/scr/node_state.c ****         next |= ST_OVER_POWER;
+ 310              		.loc 1 63 9 is_stmt 1 view .LVU92
+ 311              		.loc 1 63 14 is_stmt 0 view .LVU93
+ 312 002a 42F04002 		orr	r2, r2, #64
+ 313              	.LVL20:
+ 314              	.L22:
+  64:software/scr/node_state.c ****     if (state->sample.temperature_c >= state->limits.temperature_limit_c)
+ 315              		.loc 1 64 5 is_stmt 1 view .LVU94
+ 316              		.loc 1 64 22 is_stmt 0 view .LVU95
+ 317 002e B3F91000 		ldrsh	r0, [r3, #16]
+ 318              		.loc 1 64 53 view .LVU96
+ 319 0032 B3F92410 		ldrsh	r1, [r3, #36]
+ 320              		.loc 1 64 8 view .LVU97
+ 321 0036 8842     		cmp	r0, r1
+ 322 0038 01DB     		blt	.L23
+  65:software/scr/node_state.c ****         next |= ST_OVER_TEMP;
+ 323              		.loc 1 65 9 is_stmt 1 view .LVU98
+ 324              		.loc 1 65 14 is_stmt 0 view .LVU99
+ 325 003a 42F00202 		orr	r2, r2, #2
+ 326              	.LVL21:
+ 327              	.L23:
+  66:software/scr/node_state.c ****     if (state->sample.humidity_percent >= state->limits.humidity_limit_percent)
+ 328              		.loc 1 66 5 is_stmt 1 view .LVU100
+ 329              		.loc 1 66 22 is_stmt 0 view .LVU101
+ 330 003e 588A     		ldrh	r0, [r3, #18]
+ 331              		.loc 1 66 56 view .LVU102
+ 332 0040 D98C     		ldrh	r1, [r3, #38]
+ 333              		.loc 1 66 8 view .LVU103
+ 334 0042 8842     		cmp	r0, r1
+ 335 0044 01D3     		bcc	.L24
+  67:software/scr/node_state.c ****         next |= ST_OVER_HUMIDITY;
+ 336              		.loc 1 67 9 is_stmt 1 view .LVU104
+ 337              		.loc 1 67 14 is_stmt 0 view .LVU105
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 8
+
+
+ 338 0046 42F08002 		orr	r2, r2, #128
+ 339              	.LVL22:
+ 340              	.L24:
+  68:software/scr/node_state.c **** 
+  69:software/scr/node_state.c ****     state->sample.status = next;
+ 341              		.loc 1 69 5 is_stmt 1 view .LVU106
+ 342              		.loc 1 69 26 is_stmt 0 view .LVU107
+ 343 004a 1A75     		strb	r2, [r3, #20]
+  70:software/scr/node_state.c ****     changed = (u8)(next != state->published_status);
+ 344              		.loc 1 70 5 is_stmt 1 view .LVU108
+ 345              		.loc 1 70 33 is_stmt 0 view .LVU109
+ 346 004c 93F82800 		ldrb	r0, [r3, #40]	@ zero_extendqisi2
+ 347              		.loc 1 70 15 view .LVU110
+ 348 0050 801A     		subs	r0, r0, r2
+ 349 0052 18BF     		it	ne
+ 350 0054 0120     		movne	r0, #1
+ 351              	.LVL23:
+  71:software/scr/node_state.c ****     state->published_status = next;
+ 352              		.loc 1 71 5 is_stmt 1 view .LVU111
+ 353              		.loc 1 71 29 is_stmt 0 view .LVU112
+ 354 0056 83F82820 		strb	r2, [r3, #40]
+  72:software/scr/node_state.c ****     return changed;
+ 355              		.loc 1 72 5 is_stmt 1 view .LVU113
+ 356              		.loc 1 72 12 is_stmt 0 view .LVU114
+ 357 005a 7047     		bx	lr
+ 358              	.LVL24:
+ 359              	.L25:
+  54:software/scr/node_state.c **** 
+ 360              		.loc 1 54 28 discriminator 1 view .LVU115
+ 361 005c 0020     		movs	r0, #0
+ 362              	.LVL25:
+  73:software/scr/node_state.c **** }
+ 363              		.loc 1 73 1 view .LVU116
+ 364 005e 7047     		bx	lr
+ 365              		.cfi_endproc
+ 366              	.LFE7:
+ 368              		.section	.text.node_state_snapshot,"ax",%progbits
+ 369              		.align	1
+ 370              		.global	node_state_snapshot
+ 371              		.syntax unified
+ 372              		.thumb
+ 373              		.thumb_func
+ 375              	node_state_snapshot:
+ 376              	.LVL26:
+ 377              	.LFB8:
+  74:software/scr/node_state.c **** 
+  75:software/scr/node_state.c **** void node_state_snapshot(const node_state_t *state, node_snapshot_t *snapshot)
+  76:software/scr/node_state.c **** {
+ 378              		.loc 1 76 1 is_stmt 1 view -0
+ 379              		.cfi_startproc
+ 380              		@ args = 0, pretend = 0, frame = 0
+ 381              		@ frame_needed = 0, uses_anonymous_args = 0
+  77:software/scr/node_state.c ****     if (state == 0 || snapshot == 0) return;
+ 382              		.loc 1 77 5 view .LVU118
+ 383              		.loc 1 77 8 is_stmt 0 view .LVU119
+ 384 0000 68B1     		cbz	r0, .L29
+  76:software/scr/node_state.c ****     if (state == 0 || snapshot == 0) return;
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 9
+
+
+ 385              		.loc 1 76 1 view .LVU120
+ 386 0002 00B5     		push	{lr}
+ 387              	.LCFI5:
+ 388              		.cfi_def_cfa_offset 4
+ 389              		.cfi_offset 14, -4
+ 390 0004 8646     		mov	lr, r0
+ 391              		.loc 1 77 20 discriminator 2 view .LVU121
+ 392 0006 41B1     		cbz	r1, .L26
+  78:software/scr/node_state.c ****     *snapshot = state->sample;
+ 393              		.loc 1 78 5 is_stmt 1 view .LVU122
+ 394              		.loc 1 78 15 is_stmt 0 view .LVU123
+ 395 0008 8C46     		mov	ip, r1
+ 396 000a BEE80F00 		ldmia	lr!, {r0, r1, r2, r3}
+ 397              	.LVL27:
+ 398              		.loc 1 78 15 view .LVU124
+ 399 000e ACE80F00 		stmia	ip!, {r0, r1, r2, r3}
+ 400              	.LVL28:
+ 401              		.loc 1 78 15 view .LVU125
+ 402 0012 9EE80300 		ldm	lr, {r0, r1}
+ 403 0016 8CE80300 		stm	ip, {r0, r1}
+ 404              	.LVL29:
+ 405              	.L26:
+  79:software/scr/node_state.c **** }
+ 406              		.loc 1 79 1 view .LVU126
+ 407 001a 5DF804FB 		ldr	pc, [sp], #4
+ 408              	.LVL30:
+ 409              	.L29:
+ 410              	.LCFI6:
+ 411              		.cfi_def_cfa_offset 0
+ 412              		.cfi_restore 14
+ 413              		.loc 1 79 1 view .LVU127
+ 414 001e 7047     		bx	lr
+ 415              		.cfi_endproc
+ 416              	.LFE8:
+ 418              		.text
+ 419              	.Letext0:
+ 420              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 421              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 422              		.file 4 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/lib/gcc/arm-none-eabi/13
+ 423              		.file 5 "software/inc/types.h"
+ 424              		.file 6 "software/inc/node_state.h"
+ 425              		.file 7 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/st
+ 426              		.file 8 "<built-in>"
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s 			page 10
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 node_state.c
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:19     .text.node_state_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:25     .text.node_state_init:00000000 node_state_init
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:87     .text.node_state_init:00000030 $d
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:92     .text.node_state_update_dht:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:98     .text.node_state_update_dht:00000000 node_state_update_dht
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:142    .text.node_state_update_power:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:148    .text.node_state_update_power:00000000 node_state_update_power
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:215    .text.node_state_apply_limits:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:221    .text.node_state_apply_limits:00000000 node_state_apply_limits
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:249    .text.node_state_evaluate:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:255    .text.node_state_evaluate:00000000 node_state_evaluate
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:369    .text.node_state_snapshot:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccfGm25I.s:375    .text.node_state_snapshot:00000000 node_state_snapshot
+
+UNDEFINED SYMBOLS
+memset

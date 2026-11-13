@@ -1,0 +1,2563 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"node_lora.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "software/scr/node_lora.c"
+  18              		.section	.text.queue_telemetry,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  24              	queue_telemetry:
+  25              	.LVL0:
+  26              	.LFB75:
+   1:software/scr/node_lora.c **** #include <stdio.h>
+   2:software/scr/node_lora.c **** #include <string.h>
+   3:software/scr/node_lora.c **** 
+   4:software/scr/node_lora.c **** #include "FreeRTOS.h"
+   5:software/scr/node_lora.c **** #include "queue.h"
+   6:software/scr/node_lora.c **** #include "semphr.h"
+   7:software/scr/node_lora.c **** #include "task.h"
+   8:software/scr/node_lora.c **** #include "dht11.h"
+   9:software/scr/node_lora.c **** #include "iwdg.h"
+  10:software/scr/node_lora.c **** #include "LoRa.h"
+  11:software/scr/node_lora.c **** #include "lora_data.h"
+  12:software/scr/node_lora.c **** #include "node_lora.h"
+  13:software/scr/node_lora.c **** #include "node_board_config.h"
+  14:software/scr/node_lora.c **** #include "node_state.h"
+  15:software/scr/node_lora.c **** #include "spi.h"
+  16:software/scr/node_lora.c **** #include "usart.h"
+  17:software/scr/node_lora.c **** 
+  18:software/scr/node_lora.c **** #define NODE_ACK_TIMEOUT_MS       1500U
+  19:software/scr/node_lora.c **** #define NODE_TX_PERIOD_MS        10000U
+  20:software/scr/node_lora.c **** #define NODE_SENSOR_PERIOD_MS     1000U
+  21:software/scr/node_lora.c **** #define NODE_RX_BUFFER_SIZE         32U
+  22:software/scr/node_lora.c **** 
+  23:software/scr/node_lora.c **** enum { TX_REASON_PERIODIC = 1U, TX_REASON_STATE_CHANGE = 2U };
+  24:software/scr/node_lora.c **** 
+  25:software/scr/node_lora.c **** static LoRa node_radio;
+  26:software/scr/node_lora.c **** static node_state_t node_state;
+  27:software/scr/node_lora.c **** static SemaphoreHandle_t state_mutex;
+  28:software/scr/node_lora.c **** static QueueHandle_t tx_queue;
+  29:software/scr/node_lora.c **** static TaskHandle_t radio_task_handle;
+  30:software/scr/node_lora.c **** static TaskHandle_t monitor_task_handle;
+  31:software/scr/node_lora.c **** static uint16_t packet_sequence;
+  32:software/scr/node_lora.c **** 
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 2
+
+
+  33:software/scr/node_lora.c **** static void uart_log(const char *message)
+  34:software/scr/node_lora.c **** {
+  35:software/scr/node_lora.c ****     (void)HAL_UART_Transmit(&huart1, (uint8_t *)message,
+  36:software/scr/node_lora.c ****                             (uint16_t)strlen(message), 1000U);
+  37:software/scr/node_lora.c **** }
+  38:software/scr/node_lora.c **** 
+  39:software/scr/node_lora.c **** static void set_leds(uint8_t system_ready, uint8_t acknowledged, uint8_t status)
+  40:software/scr/node_lora.c **** {
+  41:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+  42:software/scr/node_lora.c ****                       system_ready ? NODE_LED_ACTIVE_STATE
+  43:software/scr/node_lora.c ****                                    : NODE_LED_IDLE_STATE);
+  44:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_LED_LINK_PORT, NODE_LED_LINK_PIN,
+  45:software/scr/node_lora.c ****                       acknowledged ? NODE_LED_ACTIVE_STATE
+  46:software/scr/node_lora.c ****                                    : NODE_LED_IDLE_STATE);
+  47:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN,
+  48:software/scr/node_lora.c ****                       status != 0U ? NODE_LED_ACTIVE_STATE
+  49:software/scr/node_lora.c ****                                    : NODE_LED_IDLE_STATE);
+  50:software/scr/node_lora.c **** #if NODE_BUZZER_ENABLED
+  51:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_BUZZER_PORT, NODE_BUZZER_PIN,
+  52:software/scr/node_lora.c ****                       status != 0U ? NODE_BUZZER_ACTIVE_STATE
+  53:software/scr/node_lora.c ****                                    : NODE_BUZZER_IDLE_STATE);
+  54:software/scr/node_lora.c **** #endif
+  55:software/scr/node_lora.c **** }
+  56:software/scr/node_lora.c **** 
+  57:software/scr/node_lora.c **** static void queue_telemetry(uint8_t reason)
+  58:software/scr/node_lora.c **** {
+  27              		.loc 1 58 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 8
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		.loc 1 58 1 is_stmt 0 view .LVU1
+  32 0000 00B5     		push	{lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 4
+  35              		.cfi_offset 14, -4
+  36 0002 83B0     		sub	sp, sp, #12
+  37              	.LCFI1:
+  38              		.cfi_def_cfa_offset 16
+  39 0004 8DF80700 		strb	r0, [sp, #7]
+  59:software/scr/node_lora.c ****     if (tx_queue != 0) (void)xQueueSend(tx_queue, &reason, 0U);
+  40              		.loc 1 59 5 is_stmt 1 view .LVU2
+  41              		.loc 1 59 18 is_stmt 0 view .LVU3
+  42 0008 054B     		ldr	r3, .L4
+  43 000a 1868     		ldr	r0, [r3]
+  44              	.LVL1:
+  45              		.loc 1 59 8 view .LVU4
+  46 000c 28B1     		cbz	r0, .L1
+  47              		.loc 1 59 24 is_stmt 1 discriminator 1 view .LVU5
+  48              		.loc 1 59 30 is_stmt 0 discriminator 1 view .LVU6
+  49 000e 0023     		movs	r3, #0
+  50 0010 1A46     		mov	r2, r3
+  51 0012 0DF10701 		add	r1, sp, #7
+  52              	.LVL2:
+  53              		.loc 1 59 30 discriminator 1 view .LVU7
+  54 0016 FFF7FEFF 		bl	xQueueGenericSend
+  55              	.LVL3:
+  56              	.L1:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 3
+
+
+  60:software/scr/node_lora.c **** }
+  57              		.loc 1 60 1 view .LVU8
+  58 001a 03B0     		add	sp, sp, #12
+  59              	.LCFI2:
+  60              		.cfi_def_cfa_offset 4
+  61              		@ sp needed
+  62 001c 5DF804FB 		ldr	pc, [sp], #4
+  63              	.L5:
+  64              		.align	2
+  65              	.L4:
+  66 0020 00000000 		.word	tx_queue
+  67              		.cfi_endproc
+  68              	.LFE75:
+  70              		.section	.text.radio_init,"ax",%progbits
+  71              		.align	1
+  72              		.syntax unified
+  73              		.thumb
+  74              		.thumb_func
+  76              	radio_init:
+  77              	.LFB76:
+  61:software/scr/node_lora.c **** 
+  62:software/scr/node_lora.c **** static uint8_t radio_init(void)
+  63:software/scr/node_lora.c **** {
+  78              		.loc 1 63 1 is_stmt 1 view -0
+  79              		.cfi_startproc
+  80              		@ args = 0, pretend = 0, frame = 48
+  81              		@ frame_needed = 0, uses_anonymous_args = 0
+  82 0000 10B5     		push	{r4, lr}
+  83              	.LCFI3:
+  84              		.cfi_def_cfa_offset 8
+  85              		.cfi_offset 4, -8
+  86              		.cfi_offset 14, -4
+  87 0002 8CB0     		sub	sp, sp, #48
+  88              	.LCFI4:
+  89              		.cfi_def_cfa_offset 56
+  64:software/scr/node_lora.c ****     node_radio = newLoRa();
+  90              		.loc 1 64 5 view .LVU10
+  91              		.loc 1 64 18 is_stmt 0 view .LVU11
+  92 0004 204C     		ldr	r4, .L11
+  93 0006 6846     		mov	r0, sp
+  94 0008 FFF7FEFF 		bl	newLoRa
+  95              	.LVL4:
+  96 000c A646     		mov	lr, r4
+  97 000e EC46     		mov	ip, sp
+  98 0010 BCE80F00 		ldmia	ip!, {r0, r1, r2, r3}
+  99 0014 AEE80F00 		stmia	lr!, {r0, r1, r2, r3}
+ 100 0018 BCE80F00 		ldmia	ip!, {r0, r1, r2, r3}
+ 101 001c AEE80F00 		stmia	lr!, {r0, r1, r2, r3}
+ 102 0020 9CE80700 		ldm	ip, {r0, r1, r2}
+ 103 0024 8EE80700 		stm	lr, {r0, r1, r2}
+  65:software/scr/node_lora.c ****     node_radio.CS_port = GPIOA;
+ 104              		.loc 1 65 5 is_stmt 1 view .LVU12
+ 105              		.loc 1 65 24 is_stmt 0 view .LVU13
+ 106 0028 184B     		ldr	r3, .L11+4
+ 107 002a 2360     		str	r3, [r4]
+  66:software/scr/node_lora.c ****     node_radio.CS_pin = GPIO_PIN_4;
+ 108              		.loc 1 66 5 is_stmt 1 view .LVU14
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 4
+
+
+ 109              		.loc 1 66 23 is_stmt 0 view .LVU15
+ 110 002c 1023     		movs	r3, #16
+ 111 002e A380     		strh	r3, [r4, #4]	@ movhi
+  67:software/scr/node_lora.c ****     node_radio.reset_port = GPIOB;
+ 112              		.loc 1 67 5 is_stmt 1 view .LVU16
+ 113              		.loc 1 67 27 is_stmt 0 view .LVU17
+ 114 0030 174A     		ldr	r2, .L11+8
+ 115 0032 A260     		str	r2, [r4, #8]
+  68:software/scr/node_lora.c ****     node_radio.reset_pin = GPIO_PIN_0;
+ 116              		.loc 1 68 5 is_stmt 1 view .LVU18
+ 117              		.loc 1 68 26 is_stmt 0 view .LVU19
+ 118 0034 0123     		movs	r3, #1
+ 119 0036 A381     		strh	r3, [r4, #12]	@ movhi
+  69:software/scr/node_lora.c ****     node_radio.DIO0_port = GPIOB;
+ 120              		.loc 1 69 5 is_stmt 1 view .LVU20
+ 121              		.loc 1 69 26 is_stmt 0 view .LVU21
+ 122 0038 2261     		str	r2, [r4, #16]
+  70:software/scr/node_lora.c ****     node_radio.DIO0_pin = GPIO_PIN_1;
+ 123              		.loc 1 70 5 is_stmt 1 view .LVU22
+ 124              		.loc 1 70 25 is_stmt 0 view .LVU23
+ 125 003a 0222     		movs	r2, #2
+ 126 003c A282     		strh	r2, [r4, #20]	@ movhi
+  71:software/scr/node_lora.c ****     node_radio.hSPIx = &hspi1;
+ 127              		.loc 1 71 5 is_stmt 1 view .LVU24
+ 128              		.loc 1 71 22 is_stmt 0 view .LVU25
+ 129 003e 154A     		ldr	r2, .L11+12
+ 130 0040 A261     		str	r2, [r4, #24]
+  72:software/scr/node_lora.c ****     node_radio.frequency = 433;
+ 131              		.loc 1 72 5 is_stmt 1 view .LVU26
+ 132              		.loc 1 72 26 is_stmt 0 view .LVU27
+ 133 0042 40F2B112 		movw	r2, #433
+ 134 0046 2262     		str	r2, [r4, #32]
+  73:software/scr/node_lora.c ****     node_radio.spreadingFactor = LORA_SF_7;
+ 135              		.loc 1 73 5 is_stmt 1 view .LVU28
+ 136              		.loc 1 73 32 is_stmt 0 view .LVU29
+ 137 0048 0722     		movs	r2, #7
+ 138 004a 84F82420 		strb	r2, [r4, #36]
+  74:software/scr/node_lora.c ****     node_radio.bandwidth = LORA_BW_125_KHZ;
+ 139              		.loc 1 74 5 is_stmt 1 view .LVU30
+ 140              		.loc 1 74 26 is_stmt 0 view .LVU31
+ 141 004e 84F82520 		strb	r2, [r4, #37]
+  75:software/scr/node_lora.c ****     node_radio.codingRate = LORA_CR_4_5;
+ 142              		.loc 1 75 5 is_stmt 1 view .LVU32
+ 143              		.loc 1 75 27 is_stmt 0 view .LVU33
+ 144 0052 84F82630 		strb	r3, [r4, #38]
+  76:software/scr/node_lora.c ****     node_radio.preamble = 8;
+ 145              		.loc 1 76 5 is_stmt 1 view .LVU34
+ 146              		.loc 1 76 25 is_stmt 0 view .LVU35
+ 147 0056 0823     		movs	r3, #8
+ 148 0058 2385     		strh	r3, [r4, #40]	@ movhi
+  77:software/scr/node_lora.c ****     node_radio.power = LORA_POWER_17DBM;
+ 149              		.loc 1 77 5 is_stmt 1 view .LVU36
+ 150              		.loc 1 77 22 is_stmt 0 view .LVU37
+ 151 005a 1123     		movs	r3, #17
+ 152 005c 84F82A30 		strb	r3, [r4, #42]
+  78:software/scr/node_lora.c ****     node_radio.overCurrentProtection = 100;
+ 153              		.loc 1 78 5 is_stmt 1 view .LVU38
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 5
+
+
+ 154              		.loc 1 78 38 is_stmt 0 view .LVU39
+ 155 0060 6423     		movs	r3, #100
+ 156 0062 84F82B30 		strb	r3, [r4, #43]
+  79:software/scr/node_lora.c ****     if (LoRa_init(&node_radio) != LORA_OK) return 0U;
+ 157              		.loc 1 79 5 is_stmt 1 view .LVU40
+ 158              		.loc 1 79 9 is_stmt 0 view .LVU41
+ 159 0066 2046     		mov	r0, r4
+ 160 0068 FFF7FEFF 		bl	LoRa_init
+ 161              	.LVL5:
+ 162              		.loc 1 79 8 discriminator 1 view .LVU42
+ 163 006c C828     		cmp	r0, #200
+ 164 006e 02D0     		beq	.L10
+ 165              		.loc 1 79 51 discriminator 1 view .LVU43
+ 166 0070 0020     		movs	r0, #0
+ 167              	.L7:
+  80:software/scr/node_lora.c ****     LoRa_setSyncWord(&node_radio, 0x12U);
+  81:software/scr/node_lora.c ****     LoRa_startReceiving(&node_radio);
+  82:software/scr/node_lora.c ****     return 1U;
+  83:software/scr/node_lora.c **** }
+ 168              		.loc 1 83 1 view .LVU44
+ 169 0072 0CB0     		add	sp, sp, #48
+ 170              	.LCFI5:
+ 171              		.cfi_remember_state
+ 172              		.cfi_def_cfa_offset 8
+ 173              		@ sp needed
+ 174 0074 10BD     		pop	{r4, pc}
+ 175              	.L10:
+ 176              	.LCFI6:
+ 177              		.cfi_restore_state
+  80:software/scr/node_lora.c ****     LoRa_setSyncWord(&node_radio, 0x12U);
+ 178              		.loc 1 80 5 is_stmt 1 view .LVU45
+ 179 0076 1221     		movs	r1, #18
+ 180 0078 2046     		mov	r0, r4
+ 181 007a FFF7FEFF 		bl	LoRa_setSyncWord
+ 182              	.LVL6:
+  81:software/scr/node_lora.c ****     return 1U;
+ 183              		.loc 1 81 5 view .LVU46
+ 184 007e 2046     		mov	r0, r4
+ 185 0080 FFF7FEFF 		bl	LoRa_startReceiving
+ 186              	.LVL7:
+  82:software/scr/node_lora.c **** }
+ 187              		.loc 1 82 5 view .LVU47
+  82:software/scr/node_lora.c **** }
+ 188              		.loc 1 82 12 is_stmt 0 view .LVU48
+ 189 0084 0120     		movs	r0, #1
+ 190 0086 F4E7     		b	.L7
+ 191              	.L12:
+ 192              		.align	2
+ 193              	.L11:
+ 194 0088 00000000 		.word	node_radio
+ 195 008c 00080140 		.word	1073809408
+ 196 0090 000C0140 		.word	1073810432
+ 197 0094 00000000 		.word	hspi1
+ 198              		.cfi_endproc
+ 199              	.LFE76:
+ 201              		.section	.text.create_telemetry_packet,"ax",%progbits
+ 202              		.align	1
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 6
+
+
+ 203              		.syntax unified
+ 204              		.thumb
+ 205              		.thumb_func
+ 207              	create_telemetry_packet:
+ 208              	.LVL8:
+ 209              	.LFB77:
+  84:software/scr/node_lora.c **** 
+  85:software/scr/node_lora.c **** static void create_telemetry_packet(lora_data_pkt_t *packet)
+  86:software/scr/node_lora.c **** {
+ 210              		.loc 1 86 1 is_stmt 1 view -0
+ 211              		.cfi_startproc
+ 212              		@ args = 0, pretend = 0, frame = 24
+ 213              		@ frame_needed = 0, uses_anonymous_args = 0
+ 214              		.loc 1 86 1 is_stmt 0 view .LVU50
+ 215 0000 30B5     		push	{r4, r5, lr}
+ 216              	.LCFI7:
+ 217              		.cfi_def_cfa_offset 12
+ 218              		.cfi_offset 4, -12
+ 219              		.cfi_offset 5, -8
+ 220              		.cfi_offset 14, -4
+ 221 0002 87B0     		sub	sp, sp, #28
+ 222              	.LCFI8:
+ 223              		.cfi_def_cfa_offset 40
+ 224 0004 0446     		mov	r4, r0
+  87:software/scr/node_lora.c ****     node_snapshot_t sample;
+ 225              		.loc 1 87 5 is_stmt 1 view .LVU51
+  88:software/scr/node_lora.c ****     (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 226              		.loc 1 88 5 view .LVU52
+ 227 0006 1F4D     		ldr	r5, .L15
+ 228              		.loc 1 88 11 is_stmt 0 view .LVU53
+ 229 0008 4FF0FF31 		mov	r1, #-1
+ 230 000c 2868     		ldr	r0, [r5]
+ 231              	.LVL9:
+ 232              		.loc 1 88 11 view .LVU54
+ 233 000e FFF7FEFF 		bl	xQueueSemaphoreTake
+ 234              	.LVL10:
+  89:software/scr/node_lora.c ****     node_state_snapshot(&node_state, &sample);
+ 235              		.loc 1 89 5 is_stmt 1 view .LVU55
+ 236 0012 6946     		mov	r1, sp
+ 237 0014 1C48     		ldr	r0, .L15+4
+ 238 0016 FFF7FEFF 		bl	node_state_snapshot
+ 239              	.LVL11:
+  90:software/scr/node_lora.c ****     (void)xSemaphoreGive(state_mutex);
+ 240              		.loc 1 90 5 view .LVU56
+ 241              		.loc 1 90 11 is_stmt 0 view .LVU57
+ 242 001a 0023     		movs	r3, #0
+ 243 001c 1A46     		mov	r2, r3
+ 244 001e 1946     		mov	r1, r3
+ 245 0020 2868     		ldr	r0, [r5]
+ 246 0022 FFF7FEFF 		bl	xQueueGenericSend
+ 247              	.LVL12:
+  91:software/scr/node_lora.c **** 
+  92:software/scr/node_lora.c ****     memset(packet, 0, sizeof(*packet));
+ 248              		.loc 1 92 5 is_stmt 1 view .LVU58
+ 249 0026 0023     		movs	r3, #0
+ 250 0028 2360     		str	r3, [r4]	@ unaligned
+ 251 002a 6360     		str	r3, [r4, #4]	@ unaligned
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 7
+
+
+ 252 002c A360     		str	r3, [r4, #8]	@ unaligned
+ 253 002e E360     		str	r3, [r4, #12]	@ unaligned
+ 254 0030 2361     		str	r3, [r4, #16]	@ unaligned
+ 255 0032 6361     		str	r3, [r4, #20]	@ unaligned
+ 256 0034 2376     		strb	r3, [r4, #24]
+  93:software/scr/node_lora.c ****     packet->magic = PKT_MAGIC;
+ 257              		.loc 1 93 5 view .LVU59
+ 258              		.loc 1 93 19 is_stmt 0 view .LVU60
+ 259 0036 A523     		movs	r3, #165
+ 260 0038 2370     		strb	r3, [r4]
+  94:software/scr/node_lora.c ****     packet->node_id = Node_ID;
+ 261              		.loc 1 94 5 is_stmt 1 view .LVU61
+ 262              		.loc 1 94 21 is_stmt 0 view .LVU62
+ 263 003a 0123     		movs	r3, #1
+ 264 003c 6370     		strb	r3, [r4, #1]
+  95:software/scr/node_lora.c ****     packet->seq = packet_sequence++;
+ 265              		.loc 1 95 5 is_stmt 1 view .LVU63
+ 266              		.loc 1 95 34 is_stmt 0 view .LVU64
+ 267 003e 134A     		ldr	r2, .L15+8
+ 268 0040 1388     		ldrh	r3, [r2]
+ 269 0042 591C     		adds	r1, r3, #1
+ 270 0044 1180     		strh	r1, [r2]	@ movhi
+ 271              		.loc 1 95 17 view .LVU65
+ 272 0046 6380     		strh	r3, [r4, #2]	@ unaligned
+  96:software/scr/node_lora.c ****     packet->volt = sample.voltage_v;
+ 273              		.loc 1 96 5 is_stmt 1 view .LVU66
+ 274              		.loc 1 96 26 is_stmt 0 view .LVU67
+ 275 0048 BDF80030 		ldrh	r3, [sp]
+ 276              		.loc 1 96 18 view .LVU68
+ 277 004c A380     		strh	r3, [r4, #4]	@ unaligned
+  97:software/scr/node_lora.c ****     packet->mA = sample.current_ma;
+ 278              		.loc 1 97 5 is_stmt 1 view .LVU69
+ 279              		.loc 1 97 24 is_stmt 0 view .LVU70
+ 280 004e 019B     		ldr	r3, [sp, #4]
+ 281              		.loc 1 97 16 view .LVU71
+ 282 0050 C4F80630 		str	r3, [r4, #6]	@ unaligned
+  98:software/scr/node_lora.c ****     packet->pwr = sample.power_mw;
+ 283              		.loc 1 98 5 is_stmt 1 view .LVU72
+ 284              		.loc 1 98 25 is_stmt 0 view .LVU73
+ 285 0054 029B     		ldr	r3, [sp, #8]
+ 286              		.loc 1 98 17 view .LVU74
+ 287 0056 C4F80A30 		str	r3, [r4, #10]	@ unaligned
+  99:software/scr/node_lora.c ****     packet->Wh = sample.energy_wh;
+ 288              		.loc 1 99 5 is_stmt 1 view .LVU75
+ 289              		.loc 1 99 24 is_stmt 0 view .LVU76
+ 290 005a 039B     		ldr	r3, [sp, #12]
+ 291              		.loc 1 99 16 view .LVU77
+ 292 005c C4F80E30 		str	r3, [r4, #14]	@ unaligned
+ 100:software/scr/node_lora.c ****     packet->temp = sample.temperature_c;
+ 293              		.loc 1 100 5 is_stmt 1 view .LVU78
+ 294              		.loc 1 100 26 is_stmt 0 view .LVU79
+ 295 0060 BDF91030 		ldrsh	r3, [sp, #16]
+ 296              		.loc 1 100 18 view .LVU80
+ 297 0064 6382     		strh	r3, [r4, #18]	@ unaligned
+ 101:software/scr/node_lora.c ****     packet->hum = sample.humidity_percent;
+ 298              		.loc 1 101 5 is_stmt 1 view .LVU81
+ 299              		.loc 1 101 25 is_stmt 0 view .LVU82
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 8
+
+
+ 300 0066 BDF81230 		ldrh	r3, [sp, #18]
+ 301              		.loc 1 101 17 view .LVU83
+ 302 006a A382     		strh	r3, [r4, #20]	@ unaligned
+ 102:software/scr/node_lora.c ****     packet->status = sample.status;
+ 303              		.loc 1 102 5 is_stmt 1 view .LVU84
+ 304              		.loc 1 102 28 is_stmt 0 view .LVU85
+ 305 006c 9DF81430 		ldrb	r3, [sp, #20]	@ zero_extendqisi2
+ 306              		.loc 1 102 20 view .LVU86
+ 307 0070 A375     		strb	r3, [r4, #22]
+ 103:software/scr/node_lora.c ****     packet->crc16 = crc16_modbus((const u8 *)packet,
+ 308              		.loc 1 103 5 is_stmt 1 view .LVU87
+ 309              		.loc 1 103 21 is_stmt 0 view .LVU88
+ 310 0072 1721     		movs	r1, #23
+ 311 0074 2046     		mov	r0, r4
+ 312 0076 FFF7FEFF 		bl	crc16_modbus
+ 313              	.LVL13:
+ 314              		.loc 1 103 19 discriminator 1 view .LVU89
+ 315 007a A4F81700 		strh	r0, [r4, #23]	@ unaligned
+ 104:software/scr/node_lora.c ****                                  (u8)(sizeof(*packet) - sizeof(packet->crc16)));
+ 105:software/scr/node_lora.c **** }
+ 316              		.loc 1 105 1 view .LVU90
+ 317 007e 07B0     		add	sp, sp, #28
+ 318              	.LCFI9:
+ 319              		.cfi_def_cfa_offset 12
+ 320              		@ sp needed
+ 321 0080 30BD     		pop	{r4, r5, pc}
+ 322              	.LVL14:
+ 323              	.L16:
+ 324              		.loc 1 105 1 view .LVU91
+ 325 0082 00BF     		.align	2
+ 326              	.L15:
+ 327 0084 00000000 		.word	state_mutex
+ 328 0088 00000000 		.word	node_state
+ 329 008c 00000000 		.word	packet_sequence
+ 330              		.cfi_endproc
+ 331              	.LFE77:
+ 333              		.section	.text.transmit_control,"ax",%progbits
+ 334              		.align	1
+ 335              		.syntax unified
+ 336              		.thumb
+ 337              		.thumb_func
+ 339              	transmit_control:
+ 340              	.LVL15:
+ 341              	.LFB78:
+ 106:software/scr/node_lora.c **** 
+ 107:software/scr/node_lora.c **** static void transmit_control(const uint8_t *frame, uint8_t length)
+ 108:software/scr/node_lora.c **** {
+ 342              		.loc 1 108 1 is_stmt 1 view -0
+ 343              		.cfi_startproc
+ 344              		@ args = 0, pretend = 0, frame = 0
+ 345              		@ frame_needed = 0, uses_anonymous_args = 0
+ 109:software/scr/node_lora.c ****     if (length > 0U) {
+ 346              		.loc 1 109 5 view .LVU93
+ 347              		.loc 1 109 8 is_stmt 0 view .LVU94
+ 348 0000 01B9     		cbnz	r1, .L23
+ 349 0002 7047     		bx	lr
+ 350              	.L23:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 9
+
+
+ 108:software/scr/node_lora.c ****     if (length > 0U) {
+ 351              		.loc 1 108 1 view .LVU95
+ 352 0004 10B5     		push	{r4, lr}
+ 353              	.LCFI10:
+ 354              		.cfi_def_cfa_offset 8
+ 355              		.cfi_offset 4, -8
+ 356              		.cfi_offset 14, -4
+ 357 0006 0A46     		mov	r2, r1
+ 110:software/scr/node_lora.c ****         (void)LoRa_transmit(&node_radio, (uint8_t *)frame, length, 1000U);
+ 358              		.loc 1 110 9 is_stmt 1 view .LVU96
+ 359              		.loc 1 110 15 is_stmt 0 view .LVU97
+ 360 0008 054C     		ldr	r4, .L24
+ 361 000a 4FF47A73 		mov	r3, #1000
+ 362 000e 0146     		mov	r1, r0
+ 363              	.LVL16:
+ 364              		.loc 1 110 15 view .LVU98
+ 365 0010 2046     		mov	r0, r4
+ 366              	.LVL17:
+ 367              		.loc 1 110 15 view .LVU99
+ 368 0012 FFF7FEFF 		bl	LoRa_transmit
+ 369              	.LVL18:
+ 111:software/scr/node_lora.c ****         LoRa_startReceiving(&node_radio);
+ 370              		.loc 1 111 9 is_stmt 1 view .LVU100
+ 371 0016 2046     		mov	r0, r4
+ 372 0018 FFF7FEFF 		bl	LoRa_startReceiving
+ 373              	.LVL19:
+ 112:software/scr/node_lora.c ****     }
+ 113:software/scr/node_lora.c **** }
+ 374              		.loc 1 113 1 is_stmt 0 view .LVU101
+ 375 001c 10BD     		pop	{r4, pc}
+ 376              	.L25:
+ 377 001e 00BF     		.align	2
+ 378              	.L24:
+ 379 0020 00000000 		.word	node_radio
+ 380              		.cfi_endproc
+ 381              	.LFE78:
+ 383              		.section	.text.set_leds,"ax",%progbits
+ 384              		.align	1
+ 385              		.syntax unified
+ 386              		.thumb
+ 387              		.thumb_func
+ 389              	set_leds:
+ 390              	.LVL20:
+ 391              	.LFB74:
+  40:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+ 392              		.loc 1 40 1 is_stmt 1 view -0
+ 393              		.cfi_startproc
+ 394              		@ args = 0, pretend = 0, frame = 0
+ 395              		@ frame_needed = 0, uses_anonymous_args = 0
+  40:software/scr/node_lora.c ****     HAL_GPIO_WritePin(NODE_LED_SYSTEM_PORT, NODE_LED_SYSTEM_PIN,
+ 396              		.loc 1 40 1 is_stmt 0 view .LVU103
+ 397 0000 70B5     		push	{r4, r5, r6, lr}
+ 398              	.LCFI11:
+ 399              		.cfi_def_cfa_offset 16
+ 400              		.cfi_offset 4, -16
+ 401              		.cfi_offset 5, -12
+ 402              		.cfi_offset 6, -8
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 10
+
+
+ 403              		.cfi_offset 14, -4
+ 404 0002 0D46     		mov	r5, r1
+ 405 0004 1446     		mov	r4, r2
+  41:software/scr/node_lora.c ****                       system_ready ? NODE_LED_ACTIVE_STATE
+ 406              		.loc 1 41 5 is_stmt 1 view .LVU104
+ 407 0006 021E     		subs	r2, r0, #0
+ 408              	.LVL21:
+  41:software/scr/node_lora.c ****                       system_ready ? NODE_LED_ACTIVE_STATE
+ 409              		.loc 1 41 5 is_stmt 0 view .LVU105
+ 410 0008 18BF     		it	ne
+ 411 000a 0122     		movne	r2, #1
+ 412 000c 4FF40041 		mov	r1, #32768
+ 413              	.LVL22:
+  41:software/scr/node_lora.c ****                       system_ready ? NODE_LED_ACTIVE_STATE
+ 414              		.loc 1 41 5 view .LVU106
+ 415 0010 0948     		ldr	r0, .L28
+ 416              	.LVL23:
+  41:software/scr/node_lora.c ****                       system_ready ? NODE_LED_ACTIVE_STATE
+ 417              		.loc 1 41 5 view .LVU107
+ 418 0012 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 419              	.LVL24:
+  44:software/scr/node_lora.c ****                       acknowledged ? NODE_LED_ACTIVE_STATE
+ 420              		.loc 1 44 5 is_stmt 1 view .LVU108
+ 421 0016 094E     		ldr	r6, .L28+4
+ 422 0018 2A1E     		subs	r2, r5, #0
+ 423 001a 18BF     		it	ne
+ 424 001c 0122     		movne	r2, #1
+ 425 001e 0121     		movs	r1, #1
+ 426 0020 3046     		mov	r0, r6
+ 427 0022 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 428              	.LVL25:
+  47:software/scr/node_lora.c ****                       status != 0U ? NODE_LED_ACTIVE_STATE
+ 429              		.loc 1 47 5 view .LVU109
+ 430 0026 221E     		subs	r2, r4, #0
+ 431 0028 18BF     		it	ne
+ 432 002a 0122     		movne	r2, #1
+ 433 002c 0221     		movs	r1, #2
+ 434 002e 3046     		mov	r0, r6
+ 435 0030 FFF7FEFF 		bl	HAL_GPIO_WritePin
+ 436              	.LVL26:
+  55:software/scr/node_lora.c **** 
+ 437              		.loc 1 55 1 is_stmt 0 view .LVU110
+ 438 0034 70BD     		pop	{r4, r5, r6, pc}
+ 439              	.LVL27:
+ 440              	.L29:
+  55:software/scr/node_lora.c **** 
+ 441              		.loc 1 55 1 view .LVU111
+ 442 0036 00BF     		.align	2
+ 443              	.L28:
+ 444 0038 00100140 		.word	1073811456
+ 445 003c 00080140 		.word	1073809408
+ 446              		.cfi_endproc
+ 447              	.LFE74:
+ 449              		.section	.text.uart_log,"ax",%progbits
+ 450              		.align	1
+ 451              		.syntax unified
+ 452              		.thumb
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 11
+
+
+ 453              		.thumb_func
+ 455              	uart_log:
+ 456              	.LVL28:
+ 457              	.LFB73:
+  34:software/scr/node_lora.c ****     (void)HAL_UART_Transmit(&huart1, (uint8_t *)message,
+ 458              		.loc 1 34 1 is_stmt 1 view -0
+ 459              		.cfi_startproc
+ 460              		@ args = 0, pretend = 0, frame = 0
+ 461              		@ frame_needed = 0, uses_anonymous_args = 0
+  34:software/scr/node_lora.c ****     (void)HAL_UART_Transmit(&huart1, (uint8_t *)message,
+ 462              		.loc 1 34 1 is_stmt 0 view .LVU113
+ 463 0000 10B5     		push	{r4, lr}
+ 464              	.LCFI12:
+ 465              		.cfi_def_cfa_offset 8
+ 466              		.cfi_offset 4, -8
+ 467              		.cfi_offset 14, -4
+ 468 0002 0446     		mov	r4, r0
+  35:software/scr/node_lora.c ****                             (uint16_t)strlen(message), 1000U);
+ 469              		.loc 1 35 5 is_stmt 1 view .LVU114
+  36:software/scr/node_lora.c **** }
+ 470              		.loc 1 36 39 is_stmt 0 view .LVU115
+ 471 0004 FFF7FEFF 		bl	strlen
+ 472              	.LVL29:
+  35:software/scr/node_lora.c ****                             (uint16_t)strlen(message), 1000U);
+ 473              		.loc 1 35 11 view .LVU116
+ 474 0008 4FF47A73 		mov	r3, #1000
+ 475 000c 82B2     		uxth	r2, r0
+ 476 000e 2146     		mov	r1, r4
+ 477 0010 0148     		ldr	r0, .L32
+ 478 0012 FFF7FEFF 		bl	HAL_UART_Transmit
+ 479              	.LVL30:
+  37:software/scr/node_lora.c **** 
+ 480              		.loc 1 37 1 view .LVU117
+ 481 0016 10BD     		pop	{r4, pc}
+ 482              	.LVL31:
+ 483              	.L33:
+  37:software/scr/node_lora.c **** 
+ 484              		.loc 1 37 1 view .LVU118
+ 485              		.align	2
+ 486              	.L32:
+ 487 0018 00000000 		.word	huart1
+ 488              		.cfi_endproc
+ 489              	.LFE73:
+ 491              		.section	.text.monitor_task,"ax",%progbits
+ 492              		.align	1
+ 493              		.syntax unified
+ 494              		.thumb
+ 495              		.thumb_func
+ 497              	monitor_task:
+ 498              	.LVL32:
+ 499              	.LFB86:
+ 114:software/scr/node_lora.c **** 
+ 115:software/scr/node_lora.c **** static void handle_config(const uint8_t *frame, uint8_t length)
+ 116:software/scr/node_lora.c **** {
+ 117:software/scr/node_lora.c ****     node_config_cmd_t command;
+ 118:software/scr/node_lora.c ****     node_limits_t limits;
+ 119:software/scr/node_lora.c ****     uint8_t reply[NODE_CONTROL_REPLY_SIZE];
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 12
+
+
+ 120:software/scr/node_lora.c ****     uint8_t changed;
+ 121:software/scr/node_lora.c **** 
+ 122:software/scr/node_lora.c ****     if (!lora_decode_config(frame, length, &command)) return;
+ 123:software/scr/node_lora.c ****     limits.voltage_limit_v = command.voltage_limit;
+ 124:software/scr/node_lora.c ****     limits.current_limit_ma = command.current_limit_ma;
+ 125:software/scr/node_lora.c ****     limits.power_limit_mw = command.power_limit_mw;
+ 126:software/scr/node_lora.c ****     limits.temperature_limit_c = command.temp_limit;
+ 127:software/scr/node_lora.c ****     limits.humidity_limit_percent = command.hum_limit;
+ 128:software/scr/node_lora.c ****     (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 129:software/scr/node_lora.c ****     node_state_apply_limits(&node_state, &limits);
+ 130:software/scr/node_lora.c ****     changed = node_state_evaluate(&node_state);
+ 131:software/scr/node_lora.c ****     (void)xSemaphoreGive(state_mutex);
+ 132:software/scr/node_lora.c ****     if (changed) queue_telemetry(TX_REASON_STATE_CHANGE);
+ 133:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_control_reply(reply, sizeof(reply),
+ 134:software/scr/node_lora.c ****                                                        MSG_NODE_CONFIG_ACK,
+ 135:software/scr/node_lora.c ****                                                        command.seq,
+ 136:software/scr/node_lora.c ****                                                        NODE_REPLY_OK));
+ 137:software/scr/node_lora.c ****     uart_log("Node limits updated\r\n");
+ 138:software/scr/node_lora.c **** }
+ 139:software/scr/node_lora.c **** 
+ 140:software/scr/node_lora.c **** static void handle_heartbeat(const uint8_t *frame, uint8_t length)
+ 141:software/scr/node_lora.c **** {
+ 142:software/scr/node_lora.c ****     node_heartbeat_t heartbeat;
+ 143:software/scr/node_lora.c ****     uint8_t reply[NODE_HEARTBEAT_FRAME_SIZE];
+ 144:software/scr/node_lora.c ****     if (!lora_decode_heartbeat(frame, length, MSG_NODE_HEARTBEAT, &heartbeat)) return;
+ 145:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_heartbeat(reply, sizeof(reply),
+ 146:software/scr/node_lora.c ****                                                    MSG_NODE_HEARTBEAT_ACK,
+ 147:software/scr/node_lora.c ****                                                    heartbeat.seq));
+ 148:software/scr/node_lora.c **** }
+ 149:software/scr/node_lora.c **** 
+ 150:software/scr/node_lora.c **** static uint8_t process_received_frame(const uint8_t *frame, uint8_t length,
+ 151:software/scr/node_lora.c ****                                       uint16_t expected_ack)
+ 152:software/scr/node_lora.c **** {
+ 153:software/scr/node_lora.c ****     if (length == sizeof(ack_t)) {
+ 154:software/scr/node_lora.c ****         ack_t ack;
+ 155:software/scr/node_lora.c ****         memcpy(&ack, frame, sizeof(ack));
+ 156:software/scr/node_lora.c ****         if (ack.magic == PKT_MAGIC && ack.node_id == Node_ID &&
+ 157:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 158:software/scr/node_lora.c ****     } else if (length == NODE_CONFIG_FRAME_SIZE) {
+ 159:software/scr/node_lora.c ****         handle_config(frame, length);
+ 160:software/scr/node_lora.c ****     } else if (length == NODE_HEARTBEAT_FRAME_SIZE) {
+ 161:software/scr/node_lora.c ****         handle_heartbeat(frame, length);
+ 162:software/scr/node_lora.c ****     }
+ 163:software/scr/node_lora.c ****     return 0U;
+ 164:software/scr/node_lora.c **** }
+ 165:software/scr/node_lora.c **** 
+ 166:software/scr/node_lora.c **** static uint8_t wait_for_ack(uint16_t expected_sequence)
+ 167:software/scr/node_lora.c **** {
+ 168:software/scr/node_lora.c ****     uint8_t frame[NODE_RX_BUFFER_SIZE];
+ 169:software/scr/node_lora.c ****     const TickType_t start = xTaskGetTickCount();
+ 170:software/scr/node_lora.c ****     const TickType_t timeout = pdMS_TO_TICKS(NODE_ACK_TIMEOUT_MS);
+ 171:software/scr/node_lora.c ****     LoRa_startReceiving(&node_radio);
+ 172:software/scr/node_lora.c ****     while ((xTaskGetTickCount() - start) < timeout) {
+ 173:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 174:software/scr/node_lora.c ****         (void)ulTaskNotifyTake(pdTRUE, timeout - elapsed);
+ 175:software/scr/node_lora.c ****         {
+ 176:software/scr/node_lora.c ****             const uint8_t length = LoRa_receive(&node_radio, frame, sizeof(frame));
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 13
+
+
+ 177:software/scr/node_lora.c ****             if (length > 0U && process_received_frame(frame, length,
+ 178:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 179:software/scr/node_lora.c ****         }
+ 180:software/scr/node_lora.c ****         (void)HAL_IWDG_Refresh(&hiwdg);
+ 181:software/scr/node_lora.c ****     }
+ 182:software/scr/node_lora.c ****     return 0U;
+ 183:software/scr/node_lora.c **** }
+ 184:software/scr/node_lora.c **** 
+ 185:software/scr/node_lora.c **** static uint8_t send_with_ack(const lora_data_pkt_t *packet)
+ 186:software/scr/node_lora.c **** {
+ 187:software/scr/node_lora.c ****     uint8_t attempt;
+ 188:software/scr/node_lora.c ****     for (attempt = 1U; attempt <= ACK_RETRIES; attempt++) {
+ 189:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 190:software/scr/node_lora.c ****                           (uint8_t)sizeof(*packet), 1000U) &&
+ 191:software/scr/node_lora.c ****             wait_for_ack(packet->seq)) return 1U;
+ 192:software/scr/node_lora.c ****         LoRa_startReceiving(&node_radio);
+ 193:software/scr/node_lora.c ****     }
+ 194:software/scr/node_lora.c ****     return 0U;
+ 195:software/scr/node_lora.c **** }
+ 196:software/scr/node_lora.c **** 
+ 197:software/scr/node_lora.c **** static void dht_task(void *argument)
+ 198:software/scr/node_lora.c **** {
+ 199:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 200:software/scr/node_lora.c ****     (void)argument;
+ 201:software/scr/node_lora.c ****     for (;;) {
+ 202:software/scr/node_lora.c ****         dht11_data_t data = {0};
+ 203:software/scr/node_lora.c ****         const uint8_t valid = (uint8_t)(dht11_read(&data) == 0);
+ 204:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 205:software/scr/node_lora.c ****         node_state_update_dht(&node_state, valid, (i16)data.temp, data.hum);
+ 206:software/scr/node_lora.c ****         (void)xSemaphoreGive(state_mutex);
+ 207:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 208:software/scr/node_lora.c ****         vTaskDelayUntil(&wake, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+ 209:software/scr/node_lora.c ****     }
+ 210:software/scr/node_lora.c **** }
+ 211:software/scr/node_lora.c **** 
+ 212:software/scr/node_lora.c **** static void power_task(void *argument)
+ 213:software/scr/node_lora.c **** {
+ 214:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 215:software/scr/node_lora.c ****     (void)argument;
+ 216:software/scr/node_lora.c ****     for (;;) {
+ 217:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 218:software/scr/node_lora.c ****         /* Placeholder until the real meter is fitted: zero is valid data. */
+ 219:software/scr/node_lora.c ****         node_state_update_power(&node_state, 0U, 0U, 0U, 0U, 1U);
+ 220:software/scr/node_lora.c ****         (void)xSemaphoreGive(state_mutex);
+ 221:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 222:software/scr/node_lora.c ****         vTaskDelayUntil(&wake, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+ 223:software/scr/node_lora.c ****     }
+ 224:software/scr/node_lora.c **** }
+ 225:software/scr/node_lora.c **** 
+ 226:software/scr/node_lora.c **** static void monitor_task(void *argument)
+ 227:software/scr/node_lora.c **** {
+ 500              		.loc 1 227 1 is_stmt 1 view -0
+ 501              		.cfi_startproc
+ 502              		@ args = 0, pretend = 0, frame = 0
+ 503              		@ frame_needed = 0, uses_anonymous_args = 0
+ 504              		.loc 1 227 1 is_stmt 0 view .LVU120
+ 505 0000 70B5     		push	{r4, r5, r6, lr}
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 14
+
+
+ 506              	.LCFI13:
+ 507              		.cfi_def_cfa_offset 16
+ 508              		.cfi_offset 4, -16
+ 509              		.cfi_offset 5, -12
+ 510              		.cfi_offset 6, -8
+ 511              		.cfi_offset 14, -4
+ 228:software/scr/node_lora.c ****     TickType_t last_periodic = xTaskGetTickCount();
+ 512              		.loc 1 228 5 is_stmt 1 view .LVU121
+ 513              		.loc 1 228 32 is_stmt 0 view .LVU122
+ 514 0002 FFF7FEFF 		bl	xTaskGetTickCount
+ 515              	.LVL33:
+ 516              		.loc 1 228 32 view .LVU123
+ 517 0006 0646     		mov	r6, r0
+ 518              	.LVL34:
+ 519              	.L36:
+ 229:software/scr/node_lora.c ****     (void)argument;
+ 520              		.loc 1 229 5 is_stmt 1 view .LVU124
+ 230:software/scr/node_lora.c ****     for (;;) {
+ 521              		.loc 1 230 5 view .LVU125
+ 522              	.LBB2:
+ 231:software/scr/node_lora.c ****         uint8_t changed;
+ 523              		.loc 1 231 9 view .LVU126
+ 232:software/scr/node_lora.c ****         (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+ 524              		.loc 1 232 9 view .LVU127
+ 525              		.loc 1 232 15 is_stmt 0 view .LVU128
+ 526 0008 4FF47A71 		mov	r1, #1000
+ 527 000c 0120     		movs	r0, #1
+ 528 000e FFF7FEFF 		bl	ulTaskNotifyTake
+ 529              	.LVL35:
+ 233:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 530              		.loc 1 233 9 is_stmt 1 view .LVU129
+ 531 0012 114D     		ldr	r5, .L40
+ 532              		.loc 1 233 15 is_stmt 0 view .LVU130
+ 533 0014 4FF0FF31 		mov	r1, #-1
+ 534 0018 2868     		ldr	r0, [r5]
+ 535 001a FFF7FEFF 		bl	xQueueSemaphoreTake
+ 536              	.LVL36:
+ 234:software/scr/node_lora.c ****         changed = node_state_evaluate(&node_state);
+ 537              		.loc 1 234 9 is_stmt 1 view .LVU131
+ 538              		.loc 1 234 19 is_stmt 0 view .LVU132
+ 539 001e 0F48     		ldr	r0, .L40+4
+ 540 0020 FFF7FEFF 		bl	node_state_evaluate
+ 541              	.LVL37:
+ 542 0024 0446     		mov	r4, r0
+ 543              	.LVL38:
+ 235:software/scr/node_lora.c ****         (void)xSemaphoreGive(state_mutex);
+ 544              		.loc 1 235 9 is_stmt 1 view .LVU133
+ 545              		.loc 1 235 15 is_stmt 0 view .LVU134
+ 546 0026 0023     		movs	r3, #0
+ 547 0028 1A46     		mov	r2, r3
+ 548 002a 1946     		mov	r1, r3
+ 549 002c 2868     		ldr	r0, [r5]
+ 550 002e FFF7FEFF 		bl	xQueueGenericSend
+ 551              	.LVL39:
+ 236:software/scr/node_lora.c ****         if (changed) queue_telemetry(TX_REASON_STATE_CHANGE);
+ 552              		.loc 1 236 9 is_stmt 1 view .LVU135
+ 553              		.loc 1 236 12 is_stmt 0 view .LVU136
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 15
+
+
+ 554 0032 6CB9     		cbnz	r4, .L39
+ 555              	.L35:
+ 237:software/scr/node_lora.c ****         if ((xTaskGetTickCount() - last_periodic) >=
+ 556              		.loc 1 237 9 is_stmt 1 view .LVU137
+ 557              		.loc 1 237 14 is_stmt 0 view .LVU138
+ 558 0034 FFF7FEFF 		bl	xTaskGetTickCount
+ 559              	.LVL40:
+ 560              		.loc 1 237 34 discriminator 1 view .LVU139
+ 561 0038 831B     		subs	r3, r0, r6
+ 562              		.loc 1 237 12 discriminator 1 view .LVU140
+ 563 003a 42F20F72 		movw	r2, #9999
+ 564 003e 9342     		cmp	r3, r2
+ 565 0040 E2D9     		bls	.L36
+ 238:software/scr/node_lora.c ****             pdMS_TO_TICKS(NODE_TX_PERIOD_MS)) {
+ 239:software/scr/node_lora.c ****             last_periodic = xTaskGetTickCount();
+ 566              		.loc 1 239 13 is_stmt 1 view .LVU141
+ 567              		.loc 1 239 29 is_stmt 0 view .LVU142
+ 568 0042 FFF7FEFF 		bl	xTaskGetTickCount
+ 569              	.LVL41:
+ 570 0046 0646     		mov	r6, r0
+ 571              	.LVL42:
+ 240:software/scr/node_lora.c ****             queue_telemetry(TX_REASON_PERIODIC);
+ 572              		.loc 1 240 13 is_stmt 1 view .LVU143
+ 573 0048 0120     		movs	r0, #1
+ 574              	.LVL43:
+ 575              		.loc 1 240 13 is_stmt 0 view .LVU144
+ 576 004a FFF7FEFF 		bl	queue_telemetry
+ 577              	.LVL44:
+ 578 004e DBE7     		b	.L36
+ 579              	.L39:
+ 236:software/scr/node_lora.c ****         if ((xTaskGetTickCount() - last_periodic) >=
+ 580              		.loc 1 236 22 is_stmt 1 discriminator 1 view .LVU145
+ 581 0050 0220     		movs	r0, #2
+ 582 0052 FFF7FEFF 		bl	queue_telemetry
+ 583              	.LVL45:
+ 584 0056 EDE7     		b	.L35
+ 585              	.L41:
+ 586              		.align	2
+ 587              	.L40:
+ 588 0058 00000000 		.word	state_mutex
+ 589 005c 00000000 		.word	node_state
+ 590              	.LBE2:
+ 591              		.cfi_endproc
+ 592              	.LFE86:
+ 594              		.section	.rodata.handle_config.str1.4,"aMS",%progbits,1
+ 595              		.align	2
+ 596              	.LC0:
+ 597 0000 4E6F6465 		.ascii	"Node limits updated\015\012\000"
+ 597      206C696D 
+ 597      69747320 
+ 597      75706461 
+ 597      7465640D 
+ 598              		.section	.text.handle_config,"ax",%progbits
+ 599              		.align	1
+ 600              		.syntax unified
+ 601              		.thumb
+ 602              		.thumb_func
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 16
+
+
+ 604              	handle_config:
+ 605              	.LVL46:
+ 606              	.LFB79:
+ 116:software/scr/node_lora.c ****     node_config_cmd_t command;
+ 607              		.loc 1 116 1 view -0
+ 608              		.cfi_startproc
+ 609              		@ args = 0, pretend = 0, frame = 48
+ 610              		@ frame_needed = 0, uses_anonymous_args = 0
+ 116:software/scr/node_lora.c ****     node_config_cmd_t command;
+ 611              		.loc 1 116 1 is_stmt 0 view .LVU147
+ 612 0000 30B5     		push	{r4, r5, lr}
+ 613              	.LCFI14:
+ 614              		.cfi_def_cfa_offset 12
+ 615              		.cfi_offset 4, -12
+ 616              		.cfi_offset 5, -8
+ 617              		.cfi_offset 14, -4
+ 618 0002 8FB0     		sub	sp, sp, #60
+ 619              	.LCFI15:
+ 620              		.cfi_def_cfa_offset 72
+ 117:software/scr/node_lora.c ****     node_limits_t limits;
+ 621              		.loc 1 117 5 is_stmt 1 view .LVU148
+ 118:software/scr/node_lora.c ****     uint8_t reply[NODE_CONTROL_REPLY_SIZE];
+ 622              		.loc 1 118 5 view .LVU149
+ 119:software/scr/node_lora.c ****     uint8_t changed;
+ 623              		.loc 1 119 5 view .LVU150
+ 120:software/scr/node_lora.c **** 
+ 624              		.loc 1 120 5 view .LVU151
+ 122:software/scr/node_lora.c ****     limits.voltage_limit_v = command.voltage_limit;
+ 625              		.loc 1 122 5 view .LVU152
+ 122:software/scr/node_lora.c ****     limits.voltage_limit_v = command.voltage_limit;
+ 626              		.loc 1 122 10 is_stmt 0 view .LVU153
+ 627 0004 08AA     		add	r2, sp, #32
+ 628 0006 FFF7FEFF 		bl	lora_decode_config
+ 629              	.LVL47:
+ 122:software/scr/node_lora.c ****     limits.voltage_limit_v = command.voltage_limit;
+ 630              		.loc 1 122 8 discriminator 1 view .LVU154
+ 631 000a 08B9     		cbnz	r0, .L47
+ 632              	.L42:
+ 138:software/scr/node_lora.c **** 
+ 633              		.loc 1 138 1 view .LVU155
+ 634 000c 0FB0     		add	sp, sp, #60
+ 635              	.LCFI16:
+ 636              		.cfi_remember_state
+ 637              		.cfi_def_cfa_offset 12
+ 638              		@ sp needed
+ 639 000e 30BD     		pop	{r4, r5, pc}
+ 640              	.L47:
+ 641              	.LCFI17:
+ 642              		.cfi_restore_state
+ 123:software/scr/node_lora.c ****     limits.current_limit_ma = command.current_limit_ma;
+ 643              		.loc 1 123 5 is_stmt 1 view .LVU156
+ 123:software/scr/node_lora.c ****     limits.current_limit_ma = command.current_limit_ma;
+ 644              		.loc 1 123 37 is_stmt 0 view .LVU157
+ 645 0010 BDF82530 		ldrh	r3, [sp, #37]	@ unaligned
+ 123:software/scr/node_lora.c ****     limits.current_limit_ma = command.current_limit_ma;
+ 646              		.loc 1 123 28 view .LVU158
+ 647 0014 ADF81030 		strh	r3, [sp, #16]	@ movhi
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 17
+
+
+ 124:software/scr/node_lora.c ****     limits.power_limit_mw = command.power_limit_mw;
+ 648              		.loc 1 124 5 is_stmt 1 view .LVU159
+ 124:software/scr/node_lora.c ****     limits.power_limit_mw = command.power_limit_mw;
+ 649              		.loc 1 124 38 is_stmt 0 view .LVU160
+ 650 0018 DDF82730 		ldr	r3, [sp, #39]	@ unaligned
+ 124:software/scr/node_lora.c ****     limits.power_limit_mw = command.power_limit_mw;
+ 651              		.loc 1 124 29 view .LVU161
+ 652 001c 0593     		str	r3, [sp, #20]
+ 125:software/scr/node_lora.c ****     limits.temperature_limit_c = command.temp_limit;
+ 653              		.loc 1 125 5 is_stmt 1 view .LVU162
+ 125:software/scr/node_lora.c ****     limits.temperature_limit_c = command.temp_limit;
+ 654              		.loc 1 125 36 is_stmt 0 view .LVU163
+ 655 001e DDF82B30 		ldr	r3, [sp, #43]	@ unaligned
+ 125:software/scr/node_lora.c ****     limits.temperature_limit_c = command.temp_limit;
+ 656              		.loc 1 125 27 view .LVU164
+ 657 0022 0693     		str	r3, [sp, #24]
+ 126:software/scr/node_lora.c ****     limits.humidity_limit_percent = command.hum_limit;
+ 658              		.loc 1 126 5 is_stmt 1 view .LVU165
+ 126:software/scr/node_lora.c ****     limits.humidity_limit_percent = command.hum_limit;
+ 659              		.loc 1 126 41 is_stmt 0 view .LVU166
+ 660 0024 BDF92F30 		ldrsh	r3, [sp, #47]	@ unaligned
+ 126:software/scr/node_lora.c ****     limits.humidity_limit_percent = command.hum_limit;
+ 661              		.loc 1 126 32 view .LVU167
+ 662 0028 ADF81C30 		strh	r3, [sp, #28]	@ movhi
+ 127:software/scr/node_lora.c ****     (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 663              		.loc 1 127 5 is_stmt 1 view .LVU168
+ 127:software/scr/node_lora.c ****     (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 664              		.loc 1 127 44 is_stmt 0 view .LVU169
+ 665 002c BDF83130 		ldrh	r3, [sp, #49]	@ unaligned
+ 127:software/scr/node_lora.c ****     (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 666              		.loc 1 127 35 view .LVU170
+ 667 0030 ADF81E30 		strh	r3, [sp, #30]	@ movhi
+ 128:software/scr/node_lora.c ****     node_state_apply_limits(&node_state, &limits);
+ 668              		.loc 1 128 5 is_stmt 1 view .LVU171
+ 669 0034 154D     		ldr	r5, .L49
+ 128:software/scr/node_lora.c ****     node_state_apply_limits(&node_state, &limits);
+ 670              		.loc 1 128 11 is_stmt 0 view .LVU172
+ 671 0036 4FF0FF31 		mov	r1, #-1
+ 672 003a 2868     		ldr	r0, [r5]
+ 673 003c FFF7FEFF 		bl	xQueueSemaphoreTake
+ 674              	.LVL48:
+ 129:software/scr/node_lora.c ****     changed = node_state_evaluate(&node_state);
+ 675              		.loc 1 129 5 is_stmt 1 view .LVU173
+ 676 0040 134C     		ldr	r4, .L49+4
+ 677 0042 04A9     		add	r1, sp, #16
+ 678 0044 2046     		mov	r0, r4
+ 679 0046 FFF7FEFF 		bl	node_state_apply_limits
+ 680              	.LVL49:
+ 130:software/scr/node_lora.c ****     (void)xSemaphoreGive(state_mutex);
+ 681              		.loc 1 130 5 view .LVU174
+ 130:software/scr/node_lora.c ****     (void)xSemaphoreGive(state_mutex);
+ 682              		.loc 1 130 15 is_stmt 0 view .LVU175
+ 683 004a 2046     		mov	r0, r4
+ 684 004c FFF7FEFF 		bl	node_state_evaluate
+ 685              	.LVL50:
+ 686 0050 0446     		mov	r4, r0
+ 687              	.LVL51:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 18
+
+
+ 131:software/scr/node_lora.c ****     if (changed) queue_telemetry(TX_REASON_STATE_CHANGE);
+ 688              		.loc 1 131 5 is_stmt 1 view .LVU176
+ 131:software/scr/node_lora.c ****     if (changed) queue_telemetry(TX_REASON_STATE_CHANGE);
+ 689              		.loc 1 131 11 is_stmt 0 view .LVU177
+ 690 0052 0023     		movs	r3, #0
+ 691 0054 1A46     		mov	r2, r3
+ 692 0056 1946     		mov	r1, r3
+ 693 0058 2868     		ldr	r0, [r5]
+ 694 005a FFF7FEFF 		bl	xQueueGenericSend
+ 695              	.LVL52:
+ 132:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_control_reply(reply, sizeof(reply),
+ 696              		.loc 1 132 5 is_stmt 1 view .LVU178
+ 132:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_control_reply(reply, sizeof(reply),
+ 697              		.loc 1 132 8 is_stmt 0 view .LVU179
+ 698 005e 8CB9     		cbnz	r4, .L48
+ 699              	.L45:
+ 133:software/scr/node_lora.c ****                                                        MSG_NODE_CONFIG_ACK,
+ 700              		.loc 1 133 5 is_stmt 1 view .LVU180
+ 701 0060 0023     		movs	r3, #0
+ 702 0062 0093     		str	r3, [sp]
+ 703 0064 BDF82330 		ldrh	r3, [sp, #35]	@ unaligned
+ 704 0068 C222     		movs	r2, #194
+ 705 006a 0821     		movs	r1, #8
+ 706 006c 0DEB0100 		add	r0, sp, r1
+ 707 0070 FFF7FEFF 		bl	lora_encode_control_reply
+ 708              	.LVL53:
+ 709 0074 0146     		mov	r1, r0
+ 133:software/scr/node_lora.c ****                                                        MSG_NODE_CONFIG_ACK,
+ 710              		.loc 1 133 5 is_stmt 0 discriminator 1 view .LVU181
+ 711 0076 02A8     		add	r0, sp, #8
+ 712 0078 FFF7FEFF 		bl	transmit_control
+ 713              	.LVL54:
+ 137:software/scr/node_lora.c **** }
+ 714              		.loc 1 137 5 is_stmt 1 view .LVU182
+ 715 007c 0548     		ldr	r0, .L49+8
+ 716 007e FFF7FEFF 		bl	uart_log
+ 717              	.LVL55:
+ 718 0082 C3E7     		b	.L42
+ 719              	.L48:
+ 132:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_control_reply(reply, sizeof(reply),
+ 720              		.loc 1 132 18 discriminator 1 view .LVU183
+ 721 0084 0220     		movs	r0, #2
+ 722 0086 FFF7FEFF 		bl	queue_telemetry
+ 723              	.LVL56:
+ 724 008a E9E7     		b	.L45
+ 725              	.L50:
+ 726              		.align	2
+ 727              	.L49:
+ 728 008c 00000000 		.word	state_mutex
+ 729 0090 00000000 		.word	node_state
+ 730 0094 00000000 		.word	.LC0
+ 731              		.cfi_endproc
+ 732              	.LFE79:
+ 734              		.section	.text.handle_heartbeat,"ax",%progbits
+ 735              		.align	1
+ 736              		.syntax unified
+ 737              		.thumb
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 19
+
+
+ 738              		.thumb_func
+ 740              	handle_heartbeat:
+ 741              	.LVL57:
+ 742              	.LFB80:
+ 141:software/scr/node_lora.c ****     node_heartbeat_t heartbeat;
+ 743              		.loc 1 141 1 view -0
+ 744              		.cfi_startproc
+ 745              		@ args = 0, pretend = 0, frame = 16
+ 746              		@ frame_needed = 0, uses_anonymous_args = 0
+ 141:software/scr/node_lora.c ****     node_heartbeat_t heartbeat;
+ 747              		.loc 1 141 1 is_stmt 0 view .LVU185
+ 748 0000 00B5     		push	{lr}
+ 749              	.LCFI18:
+ 750              		.cfi_def_cfa_offset 4
+ 751              		.cfi_offset 14, -4
+ 752 0002 85B0     		sub	sp, sp, #20
+ 753              	.LCFI19:
+ 754              		.cfi_def_cfa_offset 24
+ 142:software/scr/node_lora.c ****     uint8_t reply[NODE_HEARTBEAT_FRAME_SIZE];
+ 755              		.loc 1 142 5 is_stmt 1 view .LVU186
+ 143:software/scr/node_lora.c ****     if (!lora_decode_heartbeat(frame, length, MSG_NODE_HEARTBEAT, &heartbeat)) return;
+ 756              		.loc 1 143 5 view .LVU187
+ 144:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_heartbeat(reply, sizeof(reply),
+ 757              		.loc 1 144 5 view .LVU188
+ 144:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_heartbeat(reply, sizeof(reply),
+ 758              		.loc 1 144 10 is_stmt 0 view .LVU189
+ 759 0004 02AB     		add	r3, sp, #8
+ 760 0006 C322     		movs	r2, #195
+ 761 0008 FFF7FEFF 		bl	lora_decode_heartbeat
+ 762              	.LVL58:
+ 144:software/scr/node_lora.c ****     transmit_control(reply, lora_encode_heartbeat(reply, sizeof(reply),
+ 763              		.loc 1 144 8 discriminator 1 view .LVU190
+ 764 000c 10B9     		cbnz	r0, .L55
+ 765              	.L51:
+ 148:software/scr/node_lora.c **** 
+ 766              		.loc 1 148 1 view .LVU191
+ 767 000e 05B0     		add	sp, sp, #20
+ 768              	.LCFI20:
+ 769              		.cfi_remember_state
+ 770              		.cfi_def_cfa_offset 4
+ 771              		@ sp needed
+ 772 0010 5DF804FB 		ldr	pc, [sp], #4
+ 773              	.L55:
+ 774              	.LCFI21:
+ 775              		.cfi_restore_state
+ 145:software/scr/node_lora.c ****                                                    MSG_NODE_HEARTBEAT_ACK,
+ 776              		.loc 1 145 5 is_stmt 1 view .LVU192
+ 777 0014 BDF80B30 		ldrh	r3, [sp, #11]	@ unaligned
+ 778 0018 C422     		movs	r2, #196
+ 779 001a 0721     		movs	r1, #7
+ 780 001c 6846     		mov	r0, sp
+ 781 001e FFF7FEFF 		bl	lora_encode_heartbeat
+ 782              	.LVL59:
+ 783 0022 0146     		mov	r1, r0
+ 145:software/scr/node_lora.c ****                                                    MSG_NODE_HEARTBEAT_ACK,
+ 784              		.loc 1 145 5 is_stmt 0 discriminator 1 view .LVU193
+ 785 0024 6846     		mov	r0, sp
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 20
+
+
+ 786 0026 FFF7FEFF 		bl	transmit_control
+ 787              	.LVL60:
+ 788 002a F0E7     		b	.L51
+ 789              		.cfi_endproc
+ 790              	.LFE80:
+ 792              		.section	.text.process_received_frame,"ax",%progbits
+ 793              		.align	1
+ 794              		.syntax unified
+ 795              		.thumb
+ 796              		.thumb_func
+ 798              	process_received_frame:
+ 799              	.LVL61:
+ 800              	.LFB81:
+ 152:software/scr/node_lora.c ****     if (length == sizeof(ack_t)) {
+ 801              		.loc 1 152 1 is_stmt 1 view -0
+ 802              		.cfi_startproc
+ 803              		@ args = 0, pretend = 0, frame = 8
+ 804              		@ frame_needed = 0, uses_anonymous_args = 0
+ 152:software/scr/node_lora.c ****     if (length == sizeof(ack_t)) {
+ 805              		.loc 1 152 1 is_stmt 0 view .LVU195
+ 806 0000 00B5     		push	{lr}
+ 807              	.LCFI22:
+ 808              		.cfi_def_cfa_offset 4
+ 809              		.cfi_offset 14, -4
+ 810 0002 83B0     		sub	sp, sp, #12
+ 811              	.LCFI23:
+ 812              		.cfi_def_cfa_offset 16
+ 153:software/scr/node_lora.c ****         ack_t ack;
+ 813              		.loc 1 153 5 is_stmt 1 view .LVU196
+ 153:software/scr/node_lora.c ****         ack_t ack;
+ 814              		.loc 1 153 8 is_stmt 0 view .LVU197
+ 815 0004 0429     		cmp	r1, #4
+ 816 0006 07D0     		beq	.L63
+ 158:software/scr/node_lora.c ****         handle_config(frame, length);
+ 817              		.loc 1 158 12 is_stmt 1 view .LVU198
+ 158:software/scr/node_lora.c ****         handle_config(frame, length);
+ 818              		.loc 1 158 15 is_stmt 0 view .LVU199
+ 819 0008 1529     		cmp	r1, #21
+ 820 000a 14D0     		beq	.L64
+ 160:software/scr/node_lora.c ****         handle_heartbeat(frame, length);
+ 821              		.loc 1 160 12 is_stmt 1 view .LVU200
+ 160:software/scr/node_lora.c ****         handle_heartbeat(frame, length);
+ 822              		.loc 1 160 15 is_stmt 0 view .LVU201
+ 823 000c 0729     		cmp	r1, #7
+ 824 000e 16D0     		beq	.L65
+ 163:software/scr/node_lora.c **** }
+ 825              		.loc 1 163 12 view .LVU202
+ 826 0010 0020     		movs	r0, #0
+ 827              	.LVL62:
+ 828              	.L59:
+ 164:software/scr/node_lora.c **** 
+ 829              		.loc 1 164 1 view .LVU203
+ 830 0012 03B0     		add	sp, sp, #12
+ 831              	.LCFI24:
+ 832              		.cfi_remember_state
+ 833              		.cfi_def_cfa_offset 4
+ 834              		@ sp needed
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 21
+
+
+ 835 0014 5DF804FB 		ldr	pc, [sp], #4
+ 836              	.LVL63:
+ 837              	.L63:
+ 838              	.LCFI25:
+ 839              		.cfi_restore_state
+ 840              	.LBB3:
+ 154:software/scr/node_lora.c ****         memcpy(&ack, frame, sizeof(ack));
+ 841              		.loc 1 154 9 is_stmt 1 view .LVU204
+ 155:software/scr/node_lora.c ****         if (ack.magic == PKT_MAGIC && ack.node_id == Node_ID &&
+ 842              		.loc 1 155 9 view .LVU205
+ 843 0018 0368     		ldr	r3, [r0]	@ unaligned
+ 844 001a 0193     		str	r3, [sp, #4]
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 845              		.loc 1 156 9 view .LVU206
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 846              		.loc 1 156 12 is_stmt 0 view .LVU207
+ 847 001c D9B2     		uxtb	r1, r3
+ 848              	.LVL64:
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 849              		.loc 1 156 12 view .LVU208
+ 850 001e A529     		cmp	r1, #165
+ 851 0020 01D0     		beq	.L66
+ 852              	.LVL65:
+ 853              	.L58:
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 854              		.loc 1 156 12 view .LVU209
+ 855              	.LBE3:
+ 163:software/scr/node_lora.c **** }
+ 856              		.loc 1 163 12 view .LVU210
+ 857 0022 0020     		movs	r0, #0
+ 858 0024 F5E7     		b	.L59
+ 859              	.LVL66:
+ 860              	.L66:
+ 163:software/scr/node_lora.c **** }
+ 861              		.loc 1 163 12 view .LVU211
+ 862 0026 C3F30720 		ubfx	r0, r3, #8, #8
+ 863              	.LVL67:
+ 864              	.LBB4:
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 865              		.loc 1 156 36 discriminator 1 view .LVU212
+ 866 002a 0128     		cmp	r0, #1
+ 867 002c F9D1     		bne	.L58
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 868              		.loc 1 156 62 discriminator 2 view .LVU213
+ 869 002e B2EB134F 		cmp	r2, r3, lsr #16
+ 870 0032 F6D1     		bne	.L58
+ 871 0034 EDE7     		b	.L59
+ 872              	.LVL68:
+ 873              	.L64:
+ 156:software/scr/node_lora.c ****             ack.seq == expected_ack) return 1U;
+ 874              		.loc 1 156 62 discriminator 2 view .LVU214
+ 875              	.LBE4:
+ 159:software/scr/node_lora.c ****     } else if (length == NODE_HEARTBEAT_FRAME_SIZE) {
+ 876              		.loc 1 159 9 is_stmt 1 view .LVU215
+ 877 0036 FFF7FEFF 		bl	handle_config
+ 878              	.LVL69:
+ 163:software/scr/node_lora.c **** }
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 22
+
+
+ 879              		.loc 1 163 12 is_stmt 0 view .LVU216
+ 880 003a 0020     		movs	r0, #0
+ 881 003c E9E7     		b	.L59
+ 882              	.LVL70:
+ 883              	.L65:
+ 161:software/scr/node_lora.c ****     }
+ 884              		.loc 1 161 9 is_stmt 1 view .LVU217
+ 885 003e FFF7FEFF 		bl	handle_heartbeat
+ 886              	.LVL71:
+ 163:software/scr/node_lora.c **** }
+ 887              		.loc 1 163 12 is_stmt 0 view .LVU218
+ 888 0042 0020     		movs	r0, #0
+ 889 0044 E5E7     		b	.L59
+ 890              		.cfi_endproc
+ 891              	.LFE81:
+ 893              		.section	.text.wait_for_ack,"ax",%progbits
+ 894              		.align	1
+ 895              		.syntax unified
+ 896              		.thumb
+ 897              		.thumb_func
+ 899              	wait_for_ack:
+ 900              	.LVL72:
+ 901              	.LFB82:
+ 167:software/scr/node_lora.c ****     uint8_t frame[NODE_RX_BUFFER_SIZE];
+ 902              		.loc 1 167 1 is_stmt 1 view -0
+ 903              		.cfi_startproc
+ 904              		@ args = 0, pretend = 0, frame = 32
+ 905              		@ frame_needed = 0, uses_anonymous_args = 0
+ 167:software/scr/node_lora.c ****     uint8_t frame[NODE_RX_BUFFER_SIZE];
+ 906              		.loc 1 167 1 is_stmt 0 view .LVU220
+ 907 0000 30B5     		push	{r4, r5, lr}
+ 908              	.LCFI26:
+ 909              		.cfi_def_cfa_offset 12
+ 910              		.cfi_offset 4, -12
+ 911              		.cfi_offset 5, -8
+ 912              		.cfi_offset 14, -4
+ 913 0002 89B0     		sub	sp, sp, #36
+ 914              	.LCFI27:
+ 915              		.cfi_def_cfa_offset 48
+ 916 0004 0546     		mov	r5, r0
+ 168:software/scr/node_lora.c ****     const TickType_t start = xTaskGetTickCount();
+ 917              		.loc 1 168 5 is_stmt 1 view .LVU221
+ 169:software/scr/node_lora.c ****     const TickType_t timeout = pdMS_TO_TICKS(NODE_ACK_TIMEOUT_MS);
+ 918              		.loc 1 169 5 view .LVU222
+ 169:software/scr/node_lora.c ****     const TickType_t timeout = pdMS_TO_TICKS(NODE_ACK_TIMEOUT_MS);
+ 919              		.loc 1 169 30 is_stmt 0 view .LVU223
+ 920 0006 FFF7FEFF 		bl	xTaskGetTickCount
+ 921              	.LVL73:
+ 169:software/scr/node_lora.c ****     const TickType_t timeout = pdMS_TO_TICKS(NODE_ACK_TIMEOUT_MS);
+ 922              		.loc 1 169 30 view .LVU224
+ 923 000a 0446     		mov	r4, r0
+ 924              	.LVL74:
+ 170:software/scr/node_lora.c ****     LoRa_startReceiving(&node_radio);
+ 925              		.loc 1 170 5 is_stmt 1 view .LVU225
+ 171:software/scr/node_lora.c ****     while ((xTaskGetTickCount() - start) < timeout) {
+ 926              		.loc 1 171 5 view .LVU226
+ 927 000c 1448     		ldr	r0, .L75
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 23
+
+
+ 928              	.LVL75:
+ 171:software/scr/node_lora.c ****     while ((xTaskGetTickCount() - start) < timeout) {
+ 929              		.loc 1 171 5 is_stmt 0 view .LVU227
+ 930 000e FFF7FEFF 		bl	LoRa_startReceiving
+ 931              	.LVL76:
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 932              		.loc 1 172 5 is_stmt 1 view .LVU228
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 933              		.loc 1 172 11 is_stmt 0 view .LVU229
+ 934 0012 02E0     		b	.L68
+ 935              	.LVL77:
+ 936              	.L69:
+ 937              	.LBB5:
+ 180:software/scr/node_lora.c ****     }
+ 938              		.loc 1 180 9 is_stmt 1 view .LVU230
+ 180:software/scr/node_lora.c ****     }
+ 939              		.loc 1 180 15 is_stmt 0 view .LVU231
+ 940 0014 1348     		ldr	r0, .L75+4
+ 941 0016 FFF7FEFF 		bl	HAL_IWDG_Refresh
+ 942              	.LVL78:
+ 943              	.L68:
+ 180:software/scr/node_lora.c ****     }
+ 944              		.loc 1 180 15 view .LVU232
+ 945              	.LBE5:
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 946              		.loc 1 172 42 is_stmt 1 view .LVU233
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 947              		.loc 1 172 13 is_stmt 0 view .LVU234
+ 948 001a FFF7FEFF 		bl	xTaskGetTickCount
+ 949              	.LVL79:
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 950              		.loc 1 172 33 discriminator 1 view .LVU235
+ 951 001e 001B     		subs	r0, r0, r4
+ 172:software/scr/node_lora.c ****         TickType_t elapsed = xTaskGetTickCount() - start;
+ 952              		.loc 1 172 42 discriminator 1 view .LVU236
+ 953 0020 40F2DB53 		movw	r3, #1499
+ 954 0024 9842     		cmp	r0, r3
+ 955 0026 17D8     		bhi	.L74
+ 956              	.LBB7:
+ 173:software/scr/node_lora.c ****         (void)ulTaskNotifyTake(pdTRUE, timeout - elapsed);
+ 957              		.loc 1 173 9 is_stmt 1 view .LVU237
+ 173:software/scr/node_lora.c ****         (void)ulTaskNotifyTake(pdTRUE, timeout - elapsed);
+ 958              		.loc 1 173 30 is_stmt 0 view .LVU238
+ 959 0028 FFF7FEFF 		bl	xTaskGetTickCount
+ 960              	.LVL80:
+ 174:software/scr/node_lora.c ****         {
+ 961              		.loc 1 174 9 is_stmt 1 view .LVU239
+ 174:software/scr/node_lora.c ****         {
+ 962              		.loc 1 174 15 is_stmt 0 view .LVU240
+ 963 002c 211A     		subs	r1, r4, r0
+ 964 002e 01F2DC51 		addw	r1, r1, #1500
+ 965 0032 0120     		movs	r0, #1
+ 966              	.LVL81:
+ 174:software/scr/node_lora.c ****         {
+ 967              		.loc 1 174 15 view .LVU241
+ 968 0034 FFF7FEFF 		bl	ulTaskNotifyTake
+ 969              	.LVL82:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 24
+
+
+ 970              	.LBB6:
+ 176:software/scr/node_lora.c ****             if (length > 0U && process_received_frame(frame, length,
+ 971              		.loc 1 176 13 is_stmt 1 view .LVU242
+ 176:software/scr/node_lora.c ****             if (length > 0U && process_received_frame(frame, length,
+ 972              		.loc 1 176 36 is_stmt 0 view .LVU243
+ 973 0038 2022     		movs	r2, #32
+ 974 003a 6946     		mov	r1, sp
+ 975 003c 0848     		ldr	r0, .L75
+ 976 003e FFF7FEFF 		bl	LoRa_receive
+ 977              	.LVL83:
+ 177:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 978              		.loc 1 177 13 is_stmt 1 view .LVU244
+ 177:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 979              		.loc 1 177 16 is_stmt 0 view .LVU245
+ 980 0042 0146     		mov	r1, r0
+ 981 0044 0028     		cmp	r0, #0
+ 982 0046 E5D0     		beq	.L69
+ 177:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 983              		.loc 1 177 32 discriminator 1 view .LVU246
+ 984 0048 2A46     		mov	r2, r5
+ 985 004a 6846     		mov	r0, sp
+ 986              	.LVL84:
+ 177:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 987              		.loc 1 177 32 discriminator 1 view .LVU247
+ 988 004c FFF7FEFF 		bl	process_received_frame
+ 989              	.LVL85:
+ 177:software/scr/node_lora.c ****                                                        expected_sequence)) return 1U;
+ 990              		.loc 1 177 29 discriminator 1 view .LVU248
+ 991 0050 0028     		cmp	r0, #0
+ 992 0052 DFD0     		beq	.L69
+ 178:software/scr/node_lora.c ****         }
+ 993              		.loc 1 178 83 view .LVU249
+ 994 0054 0120     		movs	r0, #1
+ 995 0056 00E0     		b	.L70
+ 996              	.LVL86:
+ 997              	.L74:
+ 178:software/scr/node_lora.c ****         }
+ 998              		.loc 1 178 83 view .LVU250
+ 999              	.LBE6:
+ 1000              	.LBE7:
+ 182:software/scr/node_lora.c **** }
+ 1001              		.loc 1 182 12 view .LVU251
+ 1002 0058 0020     		movs	r0, #0
+ 1003              	.L70:
+ 183:software/scr/node_lora.c **** 
+ 1004              		.loc 1 183 1 view .LVU252
+ 1005 005a 09B0     		add	sp, sp, #36
+ 1006              	.LCFI28:
+ 1007              		.cfi_def_cfa_offset 12
+ 1008              		@ sp needed
+ 1009 005c 30BD     		pop	{r4, r5, pc}
+ 1010              	.LVL87:
+ 1011              	.L76:
+ 183:software/scr/node_lora.c **** 
+ 1012              		.loc 1 183 1 view .LVU253
+ 1013 005e 00BF     		.align	2
+ 1014              	.L75:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 25
+
+
+ 1015 0060 00000000 		.word	node_radio
+ 1016 0064 00000000 		.word	hiwdg
+ 1017              		.cfi_endproc
+ 1018              	.LFE82:
+ 1020              		.section	.text.send_with_ack,"ax",%progbits
+ 1021              		.align	1
+ 1022              		.syntax unified
+ 1023              		.thumb
+ 1024              		.thumb_func
+ 1026              	send_with_ack:
+ 1027              	.LVL88:
+ 1028              	.LFB83:
+ 186:software/scr/node_lora.c ****     uint8_t attempt;
+ 1029              		.loc 1 186 1 is_stmt 1 view -0
+ 1030              		.cfi_startproc
+ 1031              		@ args = 0, pretend = 0, frame = 0
+ 1032              		@ frame_needed = 0, uses_anonymous_args = 0
+ 186:software/scr/node_lora.c ****     uint8_t attempt;
+ 1033              		.loc 1 186 1 is_stmt 0 view .LVU255
+ 1034 0000 38B5     		push	{r3, r4, r5, lr}
+ 1035              	.LCFI29:
+ 1036              		.cfi_def_cfa_offset 16
+ 1037              		.cfi_offset 3, -16
+ 1038              		.cfi_offset 4, -12
+ 1039              		.cfi_offset 5, -8
+ 1040              		.cfi_offset 14, -4
+ 1041 0002 0546     		mov	r5, r0
+ 187:software/scr/node_lora.c ****     for (attempt = 1U; attempt <= ACK_RETRIES; attempt++) {
+ 1042              		.loc 1 187 5 is_stmt 1 view .LVU256
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1043              		.loc 1 188 5 view .LVU257
+ 1044              	.LVL89:
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1045              		.loc 1 188 18 is_stmt 0 view .LVU258
+ 1046 0004 0124     		movs	r4, #1
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1047              		.loc 1 188 5 view .LVU259
+ 1048 0006 04E0     		b	.L78
+ 1049              	.LVL90:
+ 1050              	.L79:
+ 192:software/scr/node_lora.c ****     }
+ 1051              		.loc 1 192 9 is_stmt 1 view .LVU260
+ 1052 0008 0C48     		ldr	r0, .L85
+ 1053 000a FFF7FEFF 		bl	LoRa_startReceiving
+ 1054              	.LVL91:
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1055              		.loc 1 188 55 discriminator 2 view .LVU261
+ 1056 000e 0134     		adds	r4, r4, #1
+ 1057              	.LVL92:
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1058              		.loc 1 188 55 is_stmt 0 discriminator 2 view .LVU262
+ 1059 0010 E4B2     		uxtb	r4, r4
+ 1060              	.LVL93:
+ 1061              	.L78:
+ 188:software/scr/node_lora.c ****         if (LoRa_transmit(&node_radio, (uint8_t *)packet,
+ 1062              		.loc 1 188 32 is_stmt 1 discriminator 1 view .LVU263
+ 1063 0012 032C     		cmp	r4, #3
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 26
+
+
+ 1064 0014 0FD8     		bhi	.L84
+ 189:software/scr/node_lora.c ****                           (uint8_t)sizeof(*packet), 1000U) &&
+ 1065              		.loc 1 189 9 view .LVU264
+ 189:software/scr/node_lora.c ****                           (uint8_t)sizeof(*packet), 1000U) &&
+ 1066              		.loc 1 189 13 is_stmt 0 view .LVU265
+ 1067 0016 4FF47A73 		mov	r3, #1000
+ 1068 001a 1922     		movs	r2, #25
+ 1069 001c 2946     		mov	r1, r5
+ 1070 001e 0748     		ldr	r0, .L85
+ 1071 0020 FFF7FEFF 		bl	LoRa_transmit
+ 1072              	.LVL94:
+ 189:software/scr/node_lora.c ****                           (uint8_t)sizeof(*packet), 1000U) &&
+ 1073              		.loc 1 189 12 discriminator 1 view .LVU266
+ 1074 0024 0028     		cmp	r0, #0
+ 1075 0026 EFD0     		beq	.L79
+ 191:software/scr/node_lora.c ****         LoRa_startReceiving(&node_radio);
+ 1076              		.loc 1 191 13 view .LVU267
+ 1077 0028 6888     		ldrh	r0, [r5, #2]	@ unaligned
+ 1078 002a FFF7FEFF 		bl	wait_for_ack
+ 1079              	.LVL95:
+ 190:software/scr/node_lora.c ****             wait_for_ack(packet->seq)) return 1U;
+ 1080              		.loc 1 190 60 view .LVU268
+ 1081 002e 0028     		cmp	r0, #0
+ 1082 0030 EAD0     		beq	.L79
+ 191:software/scr/node_lora.c ****         LoRa_startReceiving(&node_radio);
+ 1083              		.loc 1 191 47 view .LVU269
+ 1084 0032 0120     		movs	r0, #1
+ 1085 0034 00E0     		b	.L80
+ 1086              	.L84:
+ 194:software/scr/node_lora.c **** }
+ 1087              		.loc 1 194 12 view .LVU270
+ 1088 0036 0020     		movs	r0, #0
+ 1089              	.L80:
+ 195:software/scr/node_lora.c **** 
+ 1090              		.loc 1 195 1 view .LVU271
+ 1091 0038 38BD     		pop	{r3, r4, r5, pc}
+ 1092              	.LVL96:
+ 1093              	.L86:
+ 195:software/scr/node_lora.c **** 
+ 1094              		.loc 1 195 1 view .LVU272
+ 1095 003a 00BF     		.align	2
+ 1096              	.L85:
+ 1097 003c 00000000 		.word	node_radio
+ 1098              		.cfi_endproc
+ 1099              	.LFE83:
+ 1101              		.section	.rodata.radio_task.str1.4,"aMS",%progbits,1
+ 1102              		.align	2
+ 1103              	.LC1:
+ 1104 0000 41434B00 		.ascii	"ACK\000"
+ 1105              		.align	2
+ 1106              	.LC2:
+ 1107 0004 4E4F5F41 		.ascii	"NO_ACK\000"
+ 1107      434B00
+ 1108 000b 00       		.align	2
+ 1109              	.LC3:
+ 1110 000c 53583132 		.ascii	"SX127x init failed\015\012\000"
+ 1110      37782069 
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 27
+
+
+ 1110      6E697420 
+ 1110      6661696C 
+ 1110      65640D0A 
+ 1111 0021 000000   		.align	2
+ 1112              	.LC4:
+ 1113 0024 4E6F6465 		.ascii	"Node 1 offline monitor ready\015\012\000"
+ 1113      2031206F 
+ 1113      66666C69 
+ 1113      6E65206D 
+ 1113      6F6E6974 
+ 1114 0043 00       		.align	2
+ 1115              	.LC5:
+ 1116 0044 54582073 		.ascii	"TX seq=%u T=%dC H=%u%% status=0x%02X %s\015\012\000"
+ 1116      65713D25 
+ 1116      7520543D 
+ 1116      25644320 
+ 1116      483D2575 
+ 1117              		.section	.text.radio_task,"ax",%progbits
+ 1118              		.align	1
+ 1119              		.syntax unified
+ 1120              		.thumb
+ 1121              		.thumb_func
+ 1123              	radio_task:
+ 1124              	.LVL97:
+ 1125              	.LFB87:
+ 241:software/scr/node_lora.c ****         }
+ 242:software/scr/node_lora.c ****     }
+ 243:software/scr/node_lora.c **** }
+ 244:software/scr/node_lora.c **** 
+ 245:software/scr/node_lora.c **** static void radio_task(void *argument)
+ 246:software/scr/node_lora.c **** {
+ 1126              		.loc 1 246 1 is_stmt 1 view -0
+ 1127              		.cfi_startproc
+ 1128              		@ args = 0, pretend = 0, frame = 200
+ 1129              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1130              		.loc 1 246 1 is_stmt 0 view .LVU274
+ 1131 0000 30B5     		push	{r4, r5, lr}
+ 1132              	.LCFI30:
+ 1133              		.cfi_def_cfa_offset 12
+ 1134              		.cfi_offset 4, -12
+ 1135              		.cfi_offset 5, -8
+ 1136              		.cfi_offset 14, -4
+ 1137 0002 B7B0     		sub	sp, sp, #220
+ 1138              	.LCFI31:
+ 1139              		.cfi_def_cfa_offset 232
+ 247:software/scr/node_lora.c ****     uint8_t frame[NODE_RX_BUFFER_SIZE];
+ 1140              		.loc 1 247 5 is_stmt 1 view .LVU275
+ 248:software/scr/node_lora.c ****     uint8_t reason;
+ 1141              		.loc 1 248 5 view .LVU276
+ 249:software/scr/node_lora.c ****     (void)argument;
+ 1142              		.loc 1 249 5 view .LVU277
+ 250:software/scr/node_lora.c ****     set_leds(0U, 0U, 0U);
+ 1143              		.loc 1 250 5 view .LVU278
+ 1144 0004 0022     		movs	r2, #0
+ 1145 0006 1146     		mov	r1, r2
+ 1146 0008 1046     		mov	r0, r2
+ 1147              	.LVL98:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 28
+
+
+ 1148              		.loc 1 250 5 is_stmt 0 view .LVU279
+ 1149 000a FFF7FEFF 		bl	set_leds
+ 1150              	.LVL99:
+ 251:software/scr/node_lora.c ****     while (!radio_init()) {
+ 1151              		.loc 1 251 5 is_stmt 1 view .LVU280
+ 1152              		.loc 1 251 11 is_stmt 0 view .LVU281
+ 1153 000e 0AE0     		b	.L88
+ 1154              	.L89:
+ 252:software/scr/node_lora.c ****         HAL_GPIO_TogglePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN);
+ 1155              		.loc 1 252 9 is_stmt 1 view .LVU282
+ 1156 0010 0221     		movs	r1, #2
+ 1157 0012 3648     		ldr	r0, .L97
+ 1158 0014 FFF7FEFF 		bl	HAL_GPIO_TogglePin
+ 1159              	.LVL100:
+ 253:software/scr/node_lora.c ****         uart_log("SX127x init failed\r\n");
+ 1160              		.loc 1 253 9 view .LVU283
+ 1161 0018 3548     		ldr	r0, .L97+4
+ 1162 001a FFF7FEFF 		bl	uart_log
+ 1163              	.LVL101:
+ 254:software/scr/node_lora.c ****         vTaskDelay(pdMS_TO_TICKS(2000U));
+ 1164              		.loc 1 254 9 view .LVU284
+ 1165 001e 4FF4FA60 		mov	r0, #2000
+ 1166 0022 FFF7FEFF 		bl	vTaskDelay
+ 1167              	.LVL102:
+ 1168              	.L88:
+ 251:software/scr/node_lora.c ****         HAL_GPIO_TogglePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN);
+ 1169              		.loc 1 251 12 view .LVU285
+ 251:software/scr/node_lora.c ****         HAL_GPIO_TogglePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN);
+ 1170              		.loc 1 251 13 is_stmt 0 view .LVU286
+ 1171 0026 FFF7FEFF 		bl	radio_init
+ 1172              	.LVL103:
+ 251:software/scr/node_lora.c ****         HAL_GPIO_TogglePin(NODE_LED_ALARM_PORT, NODE_LED_ALARM_PIN);
+ 1173              		.loc 1 251 12 discriminator 1 view .LVU287
+ 1174 002a 0028     		cmp	r0, #0
+ 1175 002c F0D0     		beq	.L89
+ 255:software/scr/node_lora.c ****     }
+ 256:software/scr/node_lora.c ****     set_leds(1U, 0U, 0U);
+ 1176              		.loc 1 256 5 is_stmt 1 view .LVU288
+ 1177 002e 0022     		movs	r2, #0
+ 1178 0030 1146     		mov	r1, r2
+ 1179 0032 0120     		movs	r0, #1
+ 1180 0034 FFF7FEFF 		bl	set_leds
+ 1181              	.LVL104:
+ 257:software/scr/node_lora.c ****     uart_log("Node 1 offline monitor ready\r\n");
+ 1182              		.loc 1 257 5 view .LVU289
+ 1183 0038 2E48     		ldr	r0, .L97+8
+ 1184 003a FFF7FEFF 		bl	uart_log
+ 1185              	.LVL105:
+ 1186 003e 38E0     		b	.L93
+ 1187              	.L96:
+ 1188              	.LBB8:
+ 258:software/scr/node_lora.c **** 
+ 259:software/scr/node_lora.c ****     for (;;) {
+ 260:software/scr/node_lora.c ****         if (xQueueReceive(tx_queue, &reason, 0U) == pdTRUE) {
+ 261:software/scr/node_lora.c ****             lora_data_pkt_t packet;
+ 1189              		.loc 1 261 13 view .LVU290
+ 262:software/scr/node_lora.c ****             node_snapshot_t sample;
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 29
+
+
+ 1190              		.loc 1 262 13 view .LVU291
+ 263:software/scr/node_lora.c ****             uint8_t acknowledged;
+ 1191              		.loc 1 263 13 view .LVU292
+ 264:software/scr/node_lora.c ****             char message[112];
+ 1192              		.loc 1 264 13 view .LVU293
+ 265:software/scr/node_lora.c ****             (void)reason;
+ 1193              		.loc 1 265 13 view .LVU294
+ 266:software/scr/node_lora.c ****             create_telemetry_packet(&packet);
+ 1194              		.loc 1 266 13 view .LVU295
+ 1195 0040 0AA8     		add	r0, sp, #40
+ 1196 0042 FFF7FEFF 		bl	create_telemetry_packet
+ 1197              	.LVL106:
+ 267:software/scr/node_lora.c ****             acknowledged = send_with_ack(&packet);
+ 1198              		.loc 1 267 13 view .LVU296
+ 1199              		.loc 1 267 28 is_stmt 0 view .LVU297
+ 1200 0046 0AA8     		add	r0, sp, #40
+ 1201 0048 FFF7FEFF 		bl	send_with_ack
+ 1202              	.LVL107:
+ 1203 004c 0446     		mov	r4, r0
+ 1204              	.LVL108:
+ 268:software/scr/node_lora.c ****             (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1205              		.loc 1 268 13 is_stmt 1 view .LVU298
+ 1206 004e 2A4D     		ldr	r5, .L97+12
+ 1207              		.loc 1 268 19 is_stmt 0 view .LVU299
+ 1208 0050 4FF0FF31 		mov	r1, #-1
+ 1209 0054 2868     		ldr	r0, [r5]
+ 1210 0056 FFF7FEFF 		bl	xQueueSemaphoreTake
+ 1211              	.LVL109:
+ 269:software/scr/node_lora.c ****             node_state_snapshot(&node_state, &sample);
+ 1212              		.loc 1 269 13 is_stmt 1 view .LVU300
+ 1213 005a 04A9     		add	r1, sp, #16
+ 1214 005c 2748     		ldr	r0, .L97+16
+ 1215 005e FFF7FEFF 		bl	node_state_snapshot
+ 1216              	.LVL110:
+ 270:software/scr/node_lora.c ****             (void)xSemaphoreGive(state_mutex);
+ 1217              		.loc 1 270 13 view .LVU301
+ 1218              		.loc 1 270 19 is_stmt 0 view .LVU302
+ 1219 0062 0023     		movs	r3, #0
+ 1220 0064 1A46     		mov	r2, r3
+ 1221 0066 1946     		mov	r1, r3
+ 1222 0068 2868     		ldr	r0, [r5]
+ 1223 006a FFF7FEFF 		bl	xQueueGenericSend
+ 1224              	.LVL111:
+ 271:software/scr/node_lora.c ****             set_leds(1U, acknowledged, sample.status);
+ 1225              		.loc 1 271 13 is_stmt 1 view .LVU303
+ 1226 006e 9DF82420 		ldrb	r2, [sp, #36]	@ zero_extendqisi2
+ 1227 0072 2146     		mov	r1, r4
+ 1228 0074 0120     		movs	r0, #1
+ 1229 0076 FFF7FEFF 		bl	set_leds
+ 1230              	.LVL112:
+ 272:software/scr/node_lora.c ****             (void)snprintf(message, sizeof(message),
+ 1231              		.loc 1 272 13 view .LVU304
+ 273:software/scr/node_lora.c ****                            "TX seq=%u T=%dC H=%u%% status=0x%02X %s\r\n",
+ 274:software/scr/node_lora.c ****                            packet.seq, packet.temp, packet.hum, packet.status,
+ 1232              		.loc 1 274 34 is_stmt 0 view .LVU305
+ 1233 007a BDF82A30 		ldrh	r3, [sp, #42]
+ 1234              		.loc 1 274 46 view .LVU306
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 30
+
+
+ 1235 007e BDF93A20 		ldrsh	r2, [sp, #58]
+ 1236              		.loc 1 274 59 view .LVU307
+ 1237 0082 BDF83C10 		ldrh	r1, [sp, #60]
+ 1238              		.loc 1 274 71 view .LVU308
+ 1239 0086 9DF83E00 		ldrb	r0, [sp, #62]	@ zero_extendqisi2
+ 272:software/scr/node_lora.c ****             (void)snprintf(message, sizeof(message),
+ 1240              		.loc 1 272 19 view .LVU309
+ 1241 008a 6CB1     		cbz	r4, .L94
+ 272:software/scr/node_lora.c ****             (void)snprintf(message, sizeof(message),
+ 1242              		.loc 1 272 19 discriminator 1 view .LVU310
+ 1243 008c 1C4C     		ldr	r4, .L97+20
+ 1244              	.LVL113:
+ 1245              	.L91:
+ 272:software/scr/node_lora.c ****             (void)snprintf(message, sizeof(message),
+ 1246              		.loc 1 272 19 discriminator 4 view .LVU311
+ 1247 008e 0394     		str	r4, [sp, #12]
+ 1248 0090 0290     		str	r0, [sp, #8]
+ 1249 0092 0191     		str	r1, [sp, #4]
+ 1250 0094 0092     		str	r2, [sp]
+ 1251 0096 1B4A     		ldr	r2, .L97+24
+ 1252 0098 7021     		movs	r1, #112
+ 1253 009a 11A8     		add	r0, sp, #68
+ 1254 009c FFF7FEFF 		bl	snprintf
+ 1255              	.LVL114:
+ 275:software/scr/node_lora.c ****                            acknowledged ? "ACK" : "NO_ACK");
+ 276:software/scr/node_lora.c ****             uart_log(message);
+ 1256              		.loc 1 276 13 is_stmt 1 view .LVU312
+ 1257 00a0 11A8     		add	r0, sp, #68
+ 1258 00a2 FFF7FEFF 		bl	uart_log
+ 1259              	.LVL115:
+ 1260 00a6 0DE0     		b	.L90
+ 1261              	.LVL116:
+ 1262              	.L94:
+ 272:software/scr/node_lora.c ****                            "TX seq=%u T=%dC H=%u%% status=0x%02X %s\r\n",
+ 1263              		.loc 1 272 19 is_stmt 0 discriminator 2 view .LVU313
+ 1264 00a8 174C     		ldr	r4, .L97+28
+ 1265              	.LVL117:
+ 272:software/scr/node_lora.c ****                            "TX seq=%u T=%dC H=%u%% status=0x%02X %s\r\n",
+ 1266              		.loc 1 272 19 discriminator 2 view .LVU314
+ 1267 00aa F0E7     		b	.L91
+ 1268              	.LVL118:
+ 1269              	.L92:
+ 272:software/scr/node_lora.c ****                            "TX seq=%u T=%dC H=%u%% status=0x%02X %s\r\n",
+ 1270              		.loc 1 272 19 discriminator 2 view .LVU315
+ 1271              	.LBE8:
+ 277:software/scr/node_lora.c ****         }
+ 278:software/scr/node_lora.c ****         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(50U)) > 0U) {
+ 279:software/scr/node_lora.c ****             const uint8_t length = LoRa_receive(&node_radio, frame, sizeof(frame));
+ 280:software/scr/node_lora.c ****             if (length > 0U) (void)process_received_frame(frame, length, 0xFFFFU);
+ 281:software/scr/node_lora.c ****         }
+ 282:software/scr/node_lora.c ****         (void)HAL_IWDG_Refresh(&hiwdg);
+ 1272              		.loc 1 282 9 is_stmt 1 view .LVU316
+ 1273              		.loc 1 282 15 is_stmt 0 view .LVU317
+ 1274 00ac 1748     		ldr	r0, .L97+32
+ 1275 00ae FFF7FEFF 		bl	HAL_IWDG_Refresh
+ 1276              	.LVL119:
+ 259:software/scr/node_lora.c ****         if (xQueueReceive(tx_queue, &reason, 0U) == pdTRUE) {
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 31
+
+
+ 1277              		.loc 1 259 5 is_stmt 1 view .LVU318
+ 1278              	.L93:
+ 259:software/scr/node_lora.c ****         if (xQueueReceive(tx_queue, &reason, 0U) == pdTRUE) {
+ 1279              		.loc 1 259 5 view .LVU319
+ 260:software/scr/node_lora.c ****             lora_data_pkt_t packet;
+ 1280              		.loc 1 260 9 view .LVU320
+ 260:software/scr/node_lora.c ****             lora_data_pkt_t packet;
+ 1281              		.loc 1 260 13 is_stmt 0 view .LVU321
+ 1282 00b2 0022     		movs	r2, #0
+ 1283 00b4 0DF1B701 		add	r1, sp, #183
+ 1284 00b8 154B     		ldr	r3, .L97+36
+ 1285 00ba 1868     		ldr	r0, [r3]
+ 1286 00bc FFF7FEFF 		bl	xQueueReceive
+ 1287              	.LVL120:
+ 260:software/scr/node_lora.c ****             lora_data_pkt_t packet;
+ 1288              		.loc 1 260 12 discriminator 1 view .LVU322
+ 1289 00c0 0128     		cmp	r0, #1
+ 1290 00c2 BDD0     		beq	.L96
+ 1291              	.L90:
+ 278:software/scr/node_lora.c ****             const uint8_t length = LoRa_receive(&node_radio, frame, sizeof(frame));
+ 1292              		.loc 1 278 9 is_stmt 1 view .LVU323
+ 278:software/scr/node_lora.c ****             const uint8_t length = LoRa_receive(&node_radio, frame, sizeof(frame));
+ 1293              		.loc 1 278 13 is_stmt 0 view .LVU324
+ 1294 00c4 3221     		movs	r1, #50
+ 1295 00c6 0120     		movs	r0, #1
+ 1296 00c8 FFF7FEFF 		bl	ulTaskNotifyTake
+ 1297              	.LVL121:
+ 278:software/scr/node_lora.c ****             const uint8_t length = LoRa_receive(&node_radio, frame, sizeof(frame));
+ 1298              		.loc 1 278 12 discriminator 1 view .LVU325
+ 1299 00cc 0028     		cmp	r0, #0
+ 1300 00ce EDD0     		beq	.L92
+ 1301              	.LBB9:
+ 279:software/scr/node_lora.c ****             if (length > 0U) (void)process_received_frame(frame, length, 0xFFFFU);
+ 1302              		.loc 1 279 13 is_stmt 1 view .LVU326
+ 279:software/scr/node_lora.c ****             if (length > 0U) (void)process_received_frame(frame, length, 0xFFFFU);
+ 1303              		.loc 1 279 36 is_stmt 0 view .LVU327
+ 1304 00d0 2022     		movs	r2, #32
+ 1305 00d2 2EA9     		add	r1, sp, #184
+ 1306 00d4 0F48     		ldr	r0, .L97+40
+ 1307 00d6 FFF7FEFF 		bl	LoRa_receive
+ 1308              	.LVL122:
+ 280:software/scr/node_lora.c ****         }
+ 1309              		.loc 1 280 13 is_stmt 1 view .LVU328
+ 280:software/scr/node_lora.c ****         }
+ 1310              		.loc 1 280 16 is_stmt 0 view .LVU329
+ 1311 00da 0146     		mov	r1, r0
+ 1312 00dc 0028     		cmp	r0, #0
+ 1313 00de E5D0     		beq	.L92
+ 280:software/scr/node_lora.c ****         }
+ 1314              		.loc 1 280 30 is_stmt 1 discriminator 1 view .LVU330
+ 280:software/scr/node_lora.c ****         }
+ 1315              		.loc 1 280 36 is_stmt 0 discriminator 1 view .LVU331
+ 1316 00e0 4FF6FF72 		movw	r2, #65535
+ 1317 00e4 2EA8     		add	r0, sp, #184
+ 1318              	.LVL123:
+ 280:software/scr/node_lora.c ****         }
+ 1319              		.loc 1 280 36 discriminator 1 view .LVU332
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 32
+
+
+ 1320 00e6 FFF7FEFF 		bl	process_received_frame
+ 1321              	.LVL124:
+ 280:software/scr/node_lora.c ****         }
+ 1322              		.loc 1 280 36 discriminator 1 view .LVU333
+ 1323 00ea DFE7     		b	.L92
+ 1324              	.L98:
+ 1325              		.align	2
+ 1326              	.L97:
+ 1327 00ec 00080140 		.word	1073809408
+ 1328 00f0 0C000000 		.word	.LC3
+ 1329 00f4 24000000 		.word	.LC4
+ 1330 00f8 00000000 		.word	state_mutex
+ 1331 00fc 00000000 		.word	node_state
+ 1332 0100 00000000 		.word	.LC1
+ 1333 0104 44000000 		.word	.LC5
+ 1334 0108 04000000 		.word	.LC2
+ 1335 010c 00000000 		.word	hiwdg
+ 1336 0110 00000000 		.word	tx_queue
+ 1337 0114 00000000 		.word	node_radio
+ 1338              	.LBE9:
+ 1339              		.cfi_endproc
+ 1340              	.LFE87:
+ 1342              		.section	.text.power_task,"ax",%progbits
+ 1343              		.align	1
+ 1344              		.syntax unified
+ 1345              		.thumb
+ 1346              		.thumb_func
+ 1348              	power_task:
+ 1349              	.LVL125:
+ 1350              	.LFB85:
+ 213:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 1351              		.loc 1 213 1 is_stmt 1 view -0
+ 1352              		.cfi_startproc
+ 1353              		@ Volatile: function does not return.
+ 1354              		@ args = 0, pretend = 0, frame = 8
+ 1355              		@ frame_needed = 0, uses_anonymous_args = 0
+ 213:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 1356              		.loc 1 213 1 is_stmt 0 view .LVU335
+ 1357 0000 00B5     		push	{lr}
+ 1358              	.LCFI32:
+ 1359              		.cfi_def_cfa_offset 4
+ 1360              		.cfi_offset 14, -4
+ 1361 0002 85B0     		sub	sp, sp, #20
+ 1362              	.LCFI33:
+ 1363              		.cfi_def_cfa_offset 24
+ 214:software/scr/node_lora.c ****     (void)argument;
+ 1364              		.loc 1 214 5 is_stmt 1 view .LVU336
+ 214:software/scr/node_lora.c ****     (void)argument;
+ 1365              		.loc 1 214 23 is_stmt 0 view .LVU337
+ 1366 0004 FFF7FEFF 		bl	xTaskGetTickCount
+ 1367              	.LVL126:
+ 214:software/scr/node_lora.c ****     (void)argument;
+ 1368              		.loc 1 214 16 discriminator 1 view .LVU338
+ 1369 0008 0390     		str	r0, [sp, #12]
+ 1370              	.L100:
+ 215:software/scr/node_lora.c ****     for (;;) {
+ 1371              		.loc 1 215 5 is_stmt 1 view .LVU339
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 33
+
+
+ 216:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1372              		.loc 1 216 5 view .LVU340
+ 217:software/scr/node_lora.c ****         /* Placeholder until the real meter is fitted: zero is valid data. */
+ 1373              		.loc 1 217 9 view .LVU341
+ 1374 000a 114D     		ldr	r5, .L102
+ 217:software/scr/node_lora.c ****         /* Placeholder until the real meter is fitted: zero is valid data. */
+ 1375              		.loc 1 217 15 is_stmt 0 view .LVU342
+ 1376 000c 4FF0FF31 		mov	r1, #-1
+ 1377 0010 2868     		ldr	r0, [r5]
+ 1378 0012 FFF7FEFF 		bl	xQueueSemaphoreTake
+ 1379              	.LVL127:
+ 219:software/scr/node_lora.c ****         (void)xSemaphoreGive(state_mutex);
+ 1380              		.loc 1 219 9 is_stmt 1 view .LVU343
+ 1381 0016 0123     		movs	r3, #1
+ 1382 0018 0193     		str	r3, [sp, #4]
+ 1383 001a 0024     		movs	r4, #0
+ 1384 001c 0094     		str	r4, [sp]
+ 1385 001e 2346     		mov	r3, r4
+ 1386 0020 2246     		mov	r2, r4
+ 1387 0022 2146     		mov	r1, r4
+ 1388 0024 0B48     		ldr	r0, .L102+4
+ 1389 0026 FFF7FEFF 		bl	node_state_update_power
+ 1390              	.LVL128:
+ 220:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 1391              		.loc 1 220 9 view .LVU344
+ 220:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 1392              		.loc 1 220 15 is_stmt 0 view .LVU345
+ 1393 002a 2346     		mov	r3, r4
+ 1394 002c 2246     		mov	r2, r4
+ 1395 002e 2146     		mov	r1, r4
+ 1396 0030 2868     		ldr	r0, [r5]
+ 1397 0032 FFF7FEFF 		bl	xQueueGenericSend
+ 1398              	.LVL129:
+ 221:software/scr/node_lora.c ****         vTaskDelayUntil(&wake, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+ 1399              		.loc 1 221 9 is_stmt 1 view .LVU346
+ 1400 0036 2346     		mov	r3, r4
+ 1401 0038 0222     		movs	r2, #2
+ 1402 003a 2146     		mov	r1, r4
+ 1403 003c 0648     		ldr	r0, .L102+8
+ 1404 003e 0068     		ldr	r0, [r0]
+ 1405 0040 FFF7FEFF 		bl	xTaskGenericNotify
+ 1406              	.LVL130:
+ 222:software/scr/node_lora.c ****     }
+ 1407              		.loc 1 222 9 discriminator 1 view .LVU347
+ 1408 0044 4FF47A71 		mov	r1, #1000
+ 1409 0048 03A8     		add	r0, sp, #12
+ 1410 004a FFF7FEFF 		bl	vTaskDelayUntil
+ 1411              	.LVL131:
+ 216:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1412              		.loc 1 216 5 view .LVU348
+ 1413 004e DCE7     		b	.L100
+ 1414              	.L103:
+ 1415              		.align	2
+ 1416              	.L102:
+ 1417 0050 00000000 		.word	state_mutex
+ 1418 0054 00000000 		.word	node_state
+ 1419 0058 00000000 		.word	monitor_task_handle
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 34
+
+
+ 1420              		.cfi_endproc
+ 1421              	.LFE85:
+ 1423              		.section	.text.dht_task,"ax",%progbits
+ 1424              		.align	1
+ 1425              		.syntax unified
+ 1426              		.thumb
+ 1427              		.thumb_func
+ 1429              	dht_task:
+ 1430              	.LVL132:
+ 1431              	.LFB84:
+ 198:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 1432              		.loc 1 198 1 view -0
+ 1433              		.cfi_startproc
+ 1434              		@ args = 0, pretend = 0, frame = 8
+ 1435              		@ frame_needed = 0, uses_anonymous_args = 0
+ 198:software/scr/node_lora.c ****     TickType_t wake = xTaskGetTickCount();
+ 1436              		.loc 1 198 1 is_stmt 0 view .LVU350
+ 1437 0000 70B5     		push	{r4, r5, r6, lr}
+ 1438              	.LCFI34:
+ 1439              		.cfi_def_cfa_offset 16
+ 1440              		.cfi_offset 4, -16
+ 1441              		.cfi_offset 5, -12
+ 1442              		.cfi_offset 6, -8
+ 1443              		.cfi_offset 14, -4
+ 1444 0002 82B0     		sub	sp, sp, #8
+ 1445              	.LCFI35:
+ 1446              		.cfi_def_cfa_offset 24
+ 199:software/scr/node_lora.c ****     (void)argument;
+ 1447              		.loc 1 199 5 is_stmt 1 view .LVU351
+ 199:software/scr/node_lora.c ****     (void)argument;
+ 1448              		.loc 1 199 23 is_stmt 0 view .LVU352
+ 1449 0004 FFF7FEFF 		bl	xTaskGetTickCount
+ 1450              	.LVL133:
+ 199:software/scr/node_lora.c ****     (void)argument;
+ 1451              		.loc 1 199 16 discriminator 1 view .LVU353
+ 1452 0008 0190     		str	r0, [sp, #4]
+ 1453              	.L105:
+ 200:software/scr/node_lora.c ****     for (;;) {
+ 1454              		.loc 1 200 5 is_stmt 1 view .LVU354
+ 201:software/scr/node_lora.c ****         dht11_data_t data = {0};
+ 1455              		.loc 1 201 5 view .LVU355
+ 1456              	.LBB10:
+ 202:software/scr/node_lora.c ****         const uint8_t valid = (uint8_t)(dht11_read(&data) == 0);
+ 1457              		.loc 1 202 9 view .LVU356
+ 202:software/scr/node_lora.c ****         const uint8_t valid = (uint8_t)(dht11_read(&data) == 0);
+ 1458              		.loc 1 202 22 is_stmt 0 view .LVU357
+ 1459 000a 0024     		movs	r4, #0
+ 1460 000c 0094     		str	r4, [sp]
+ 203:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1461              		.loc 1 203 9 is_stmt 1 view .LVU358
+ 203:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1462              		.loc 1 203 41 is_stmt 0 view .LVU359
+ 1463 000e 6846     		mov	r0, sp
+ 1464 0010 FFF7FEFF 		bl	dht11_read
+ 1465              	.LVL134:
+ 203:software/scr/node_lora.c ****         (void)xSemaphoreTake(state_mutex, portMAX_DELAY);
+ 1466              		.loc 1 203 31 discriminator 1 view .LVU360
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 35
+
+
+ 1467 0014 B0FA80F5 		clz	r5, r0
+ 1468 0018 6D09     		lsrs	r5, r5, #5
+ 1469              	.LVL135:
+ 204:software/scr/node_lora.c ****         node_state_update_dht(&node_state, valid, (i16)data.temp, data.hum);
+ 1470              		.loc 1 204 9 is_stmt 1 view .LVU361
+ 1471 001a 104E     		ldr	r6, .L107
+ 204:software/scr/node_lora.c ****         node_state_update_dht(&node_state, valid, (i16)data.temp, data.hum);
+ 1472              		.loc 1 204 15 is_stmt 0 view .LVU362
+ 1473 001c 4FF0FF31 		mov	r1, #-1
+ 1474 0020 3068     		ldr	r0, [r6]
+ 1475 0022 FFF7FEFF 		bl	xQueueSemaphoreTake
+ 1476              	.LVL136:
+ 205:software/scr/node_lora.c ****         (void)xSemaphoreGive(state_mutex);
+ 1477              		.loc 1 205 9 is_stmt 1 view .LVU363
+ 1478 0026 BDF80230 		ldrh	r3, [sp, #2]
+ 1479 002a BDF90020 		ldrsh	r2, [sp]
+ 1480 002e 2946     		mov	r1, r5
+ 1481 0030 0B48     		ldr	r0, .L107+4
+ 1482 0032 FFF7FEFF 		bl	node_state_update_dht
+ 1483              	.LVL137:
+ 206:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 1484              		.loc 1 206 9 view .LVU364
+ 206:software/scr/node_lora.c ****         xTaskNotifyGive(monitor_task_handle);
+ 1485              		.loc 1 206 15 is_stmt 0 view .LVU365
+ 1486 0036 2346     		mov	r3, r4
+ 1487 0038 2246     		mov	r2, r4
+ 1488 003a 2146     		mov	r1, r4
+ 1489 003c 3068     		ldr	r0, [r6]
+ 1490 003e FFF7FEFF 		bl	xQueueGenericSend
+ 1491              	.LVL138:
+ 207:software/scr/node_lora.c ****         vTaskDelayUntil(&wake, pdMS_TO_TICKS(NODE_SENSOR_PERIOD_MS));
+ 1492              		.loc 1 207 9 is_stmt 1 view .LVU366
+ 1493 0042 2346     		mov	r3, r4
+ 1494 0044 0222     		movs	r2, #2
+ 1495 0046 2146     		mov	r1, r4
+ 1496 0048 0648     		ldr	r0, .L107+8
+ 1497 004a 0068     		ldr	r0, [r0]
+ 1498 004c FFF7FEFF 		bl	xTaskGenericNotify
+ 1499              	.LVL139:
+ 208:software/scr/node_lora.c ****     }
+ 1500              		.loc 1 208 9 view .LVU367
+ 1501 0050 4FF47A71 		mov	r1, #1000
+ 1502 0054 01A8     		add	r0, sp, #4
+ 1503 0056 FFF7FEFF 		bl	vTaskDelayUntil
+ 1504              	.LVL140:
+ 1505              	.LBE10:
+ 201:software/scr/node_lora.c ****         dht11_data_t data = {0};
+ 1506              		.loc 1 201 5 view .LVU368
+ 1507 005a D6E7     		b	.L105
+ 1508              	.L108:
+ 1509              		.align	2
+ 1510              	.L107:
+ 1511 005c 00000000 		.word	state_mutex
+ 1512 0060 00000000 		.word	node_state
+ 1513 0064 00000000 		.word	monitor_task_handle
+ 1514              		.cfi_endproc
+ 1515              	.LFE84:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 36
+
+
+ 1517              		.section	.text.node_lora_dio0_isr,"ax",%progbits
+ 1518              		.align	1
+ 1519              		.global	node_lora_dio0_isr
+ 1520              		.syntax unified
+ 1521              		.thumb
+ 1522              		.thumb_func
+ 1524              	node_lora_dio0_isr:
+ 1525              	.LFB88:
+ 283:software/scr/node_lora.c ****     }
+ 284:software/scr/node_lora.c **** }
+ 285:software/scr/node_lora.c **** 
+ 286:software/scr/node_lora.c **** void node_lora_dio0_isr(void)
+ 287:software/scr/node_lora.c **** {
+ 1526              		.loc 1 287 1 view -0
+ 1527              		.cfi_startproc
+ 1528              		@ args = 0, pretend = 0, frame = 8
+ 1529              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1530 0000 00B5     		push	{lr}
+ 1531              	.LCFI36:
+ 1532              		.cfi_def_cfa_offset 4
+ 1533              		.cfi_offset 14, -4
+ 1534 0002 83B0     		sub	sp, sp, #12
+ 1535              	.LCFI37:
+ 1536              		.cfi_def_cfa_offset 16
+ 288:software/scr/node_lora.c ****     BaseType_t higher_priority_task_woken = pdFALSE;
+ 1537              		.loc 1 288 5 view .LVU370
+ 1538              		.loc 1 288 16 is_stmt 0 view .LVU371
+ 1539 0004 0023     		movs	r3, #0
+ 1540 0006 0193     		str	r3, [sp, #4]
+ 289:software/scr/node_lora.c ****     if (radio_task_handle != 0) {
+ 1541              		.loc 1 289 5 is_stmt 1 view .LVU372
+ 1542              		.loc 1 289 27 is_stmt 0 view .LVU373
+ 1543 0008 0A4B     		ldr	r3, .L112
+ 1544 000a 1868     		ldr	r0, [r3]
+ 1545              		.loc 1 289 8 view .LVU374
+ 1546 000c 70B1     		cbz	r0, .L109
+ 290:software/scr/node_lora.c ****         vTaskNotifyGiveFromISR(radio_task_handle, &higher_priority_task_woken);
+ 1547              		.loc 1 290 9 is_stmt 1 view .LVU375
+ 1548 000e 01A9     		add	r1, sp, #4
+ 1549 0010 FFF7FEFF 		bl	vTaskNotifyGiveFromISR
+ 1550              	.LVL141:
+ 291:software/scr/node_lora.c ****         portYIELD_FROM_ISR(higher_priority_task_woken);
+ 1551              		.loc 1 291 9 view .LVU376
+ 1552 0014 019B     		ldr	r3, [sp, #4]
+ 1553 0016 4BB1     		cbz	r3, .L109
+ 1554              		.loc 1 291 9 discriminator 1 view .LVU377
+ 1555 0018 4FF0E023 		mov	r3, #-536813568
+ 1556 001c 4FF08052 		mov	r2, #268435456
+ 1557 0020 C3F8042D 		str	r2, [r3, #3332]
+ 1558              		.loc 1 291 9 discriminator 1 view .LVU378
+ 1559              		.syntax unified
+ 1560              	@ 291 "software/scr/node_lora.c" 1
+ 1561 0024 BFF34F8F 		dsb
+ 1562              	@ 0 "" 2
+ 1563              		.loc 1 291 9 discriminator 1 view .LVU379
+ 1564              	@ 291 "software/scr/node_lora.c" 1
+ 1565 0028 BFF36F8F 		isb
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 37
+
+
+ 1566              	@ 0 "" 2
+ 1567              		.loc 1 291 55 discriminator 3 view .LVU380
+ 1568              		.thumb
+ 1569              		.syntax unified
+ 1570              	.L109:
+ 292:software/scr/node_lora.c ****     }
+ 293:software/scr/node_lora.c **** }
+ 1571              		.loc 1 293 1 is_stmt 0 view .LVU381
+ 1572 002c 03B0     		add	sp, sp, #12
+ 1573              	.LCFI38:
+ 1574              		.cfi_def_cfa_offset 4
+ 1575              		@ sp needed
+ 1576 002e 5DF804FB 		ldr	pc, [sp], #4
+ 1577              	.L113:
+ 1578 0032 00BF     		.align	2
+ 1579              	.L112:
+ 1580 0034 00000000 		.word	radio_task_handle
+ 1581              		.cfi_endproc
+ 1582              	.LFE88:
+ 1584              		.section	.rodata.node_init.str1.4,"aMS",%progbits,1
+ 1585              		.align	2
+ 1586              	.LC6:
+ 1587 0000 6D6F6E69 		.ascii	"monitor\000"
+ 1587      746F7200 
+ 1588              		.align	2
+ 1589              	.LC7:
+ 1590 0008 64687400 		.ascii	"dht\000"
+ 1591              		.align	2
+ 1592              	.LC8:
+ 1593 000c 706F7765 		.ascii	"power\000"
+ 1593      7200
+ 1594 0012 0000     		.align	2
+ 1595              	.LC9:
+ 1596 0014 72616469 		.ascii	"radio\000"
+ 1596      6F00
+ 1597              		.section	.text.node_init,"ax",%progbits
+ 1598              		.align	1
+ 1599              		.global	node_init
+ 1600              		.syntax unified
+ 1601              		.thumb
+ 1602              		.thumb_func
+ 1604              	node_init:
+ 1605              	.LFB89:
+ 294:software/scr/node_lora.c **** 
+ 295:software/scr/node_lora.c **** uint8_t node_init(void)
+ 296:software/scr/node_lora.c **** {
+ 1606              		.loc 1 296 1 is_stmt 1 view -0
+ 1607              		.cfi_startproc
+ 1608              		@ args = 0, pretend = 0, frame = 0
+ 1609              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1610 0000 10B5     		push	{r4, lr}
+ 1611              	.LCFI39:
+ 1612              		.cfi_def_cfa_offset 8
+ 1613              		.cfi_offset 4, -8
+ 1614              		.cfi_offset 14, -4
+ 1615 0002 82B0     		sub	sp, sp, #8
+ 1616              	.LCFI40:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 38
+
+
+ 1617              		.cfi_def_cfa_offset 16
+ 297:software/scr/node_lora.c ****     node_state_init(&node_state);
+ 1618              		.loc 1 297 5 view .LVU383
+ 1619 0004 2548     		ldr	r0, .L122
+ 1620 0006 FFF7FEFF 		bl	node_state_init
+ 1621              	.LVL142:
+ 298:software/scr/node_lora.c ****     state_mutex = xSemaphoreCreateMutex();
+ 1622              		.loc 1 298 5 view .LVU384
+ 1623              		.loc 1 298 19 is_stmt 0 view .LVU385
+ 1624 000a 0120     		movs	r0, #1
+ 1625 000c FFF7FEFF 		bl	xQueueCreateMutex
+ 1626              	.LVL143:
+ 1627              		.loc 1 298 17 discriminator 1 view .LVU386
+ 1628 0010 234C     		ldr	r4, .L122+4
+ 1629 0012 2060     		str	r0, [r4]
+ 299:software/scr/node_lora.c ****     tx_queue = xQueueCreate(4U, sizeof(uint8_t));
+ 1630              		.loc 1 299 5 is_stmt 1 view .LVU387
+ 1631              		.loc 1 299 16 is_stmt 0 view .LVU388
+ 1632 0014 0022     		movs	r2, #0
+ 1633 0016 0121     		movs	r1, #1
+ 1634 0018 0420     		movs	r0, #4
+ 1635 001a FFF7FEFF 		bl	xQueueGenericCreate
+ 1636              	.LVL144:
+ 1637              		.loc 1 299 14 discriminator 1 view .LVU389
+ 1638 001e 214B     		ldr	r3, .L122+8
+ 1639 0020 1860     		str	r0, [r3]
+ 300:software/scr/node_lora.c ****     if (state_mutex == 0 || tx_queue == 0) return 0U;
+ 1640              		.loc 1 300 5 is_stmt 1 view .LVU390
+ 1641              		.loc 1 300 21 is_stmt 0 view .LVU391
+ 1642 0022 2368     		ldr	r3, [r4]
+ 1643              		.loc 1 300 8 view .LVU392
+ 1644 0024 002B     		cmp	r3, #0
+ 1645 0026 35D0     		beq	.L117
+ 1646              		.loc 1 300 26 discriminator 2 view .LVU393
+ 1647 0028 0028     		cmp	r0, #0
+ 1648 002a 35D0     		beq	.L118
+ 301:software/scr/node_lora.c **** 
+ 302:software/scr/node_lora.c ****     if (xTaskCreate(monitor_task, "monitor", 192U, 0,
+ 1649              		.loc 1 302 5 is_stmt 1 view .LVU394
+ 1650              		.loc 1 302 9 is_stmt 0 view .LVU395
+ 1651 002c 1E4B     		ldr	r3, .L122+12
+ 1652 002e 0193     		str	r3, [sp, #4]
+ 1653 0030 0223     		movs	r3, #2
+ 1654 0032 0093     		str	r3, [sp]
+ 1655 0034 0023     		movs	r3, #0
+ 1656 0036 C022     		movs	r2, #192
+ 1657 0038 1C49     		ldr	r1, .L122+16
+ 1658 003a 1D48     		ldr	r0, .L122+20
+ 1659 003c FFF7FEFF 		bl	xTaskCreate
+ 1660              	.LVL145:
+ 1661              		.loc 1 302 8 discriminator 1 view .LVU396
+ 1662 0040 0128     		cmp	r0, #1
+ 1663 0042 02D0     		beq	.L121
+ 1664              	.L116:
+ 303:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 2U, &monitor_task_handle) != pdPASS ||
+ 304:software/scr/node_lora.c ****         xTaskCreate(dht_task, "dht", 192U, 0,
+ 305:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 2U, 0) != pdPASS ||
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 39
+
+
+ 306:software/scr/node_lora.c ****         xTaskCreate(power_task, "power", 160U, 0,
+ 307:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 1U, 0) != pdPASS ||
+ 308:software/scr/node_lora.c ****         xTaskCreate(radio_task, "radio", 512U, 0,
+ 309:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 3U, &radio_task_handle) != pdPASS) return 0U;
+ 1665              		.loc 1 309 75 is_stmt 1 view .LVU397
+ 1666              		.loc 1 309 82 is_stmt 0 view .LVU398
+ 1667 0044 0020     		movs	r0, #0
+ 1668              	.L115:
+ 310:software/scr/node_lora.c ****     return 1U;
+ 311:software/scr/node_lora.c **** }
+ 1669              		.loc 1 311 1 view .LVU399
+ 1670 0046 02B0     		add	sp, sp, #8
+ 1671              	.LCFI41:
+ 1672              		.cfi_remember_state
+ 1673              		.cfi_def_cfa_offset 8
+ 1674              		@ sp needed
+ 1675 0048 10BD     		pop	{r4, pc}
+ 1676              	.L121:
+ 1677              	.LCFI42:
+ 1678              		.cfi_restore_state
+ 304:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 2U, 0) != pdPASS ||
+ 1679              		.loc 1 304 9 view .LVU400
+ 1680 004a 0023     		movs	r3, #0
+ 1681 004c 0193     		str	r3, [sp, #4]
+ 1682 004e 0222     		movs	r2, #2
+ 1683 0050 0092     		str	r2, [sp]
+ 1684 0052 C022     		movs	r2, #192
+ 1685 0054 1749     		ldr	r1, .L122+24
+ 1686 0056 1848     		ldr	r0, .L122+28
+ 1687 0058 FFF7FEFF 		bl	xTaskCreate
+ 1688              	.LVL146:
+ 303:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 2U, &monitor_task_handle) != pdPASS ||
+ 1689              		.loc 1 303 76 view .LVU401
+ 1690 005c 0128     		cmp	r0, #1
+ 1691 005e F1D1     		bne	.L116
+ 306:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 1U, 0) != pdPASS ||
+ 1692              		.loc 1 306 9 view .LVU402
+ 1693 0060 0023     		movs	r3, #0
+ 1694 0062 0193     		str	r3, [sp, #4]
+ 1695 0064 0122     		movs	r2, #1
+ 1696 0066 0092     		str	r2, [sp]
+ 1697 0068 A022     		movs	r2, #160
+ 1698 006a 1449     		ldr	r1, .L122+32
+ 1699 006c 1448     		ldr	r0, .L122+36
+ 1700 006e FFF7FEFF 		bl	xTaskCreate
+ 1701              	.LVL147:
+ 305:software/scr/node_lora.c ****         xTaskCreate(power_task, "power", 160U, 0,
+ 1702              		.loc 1 305 57 view .LVU403
+ 1703 0072 0128     		cmp	r0, #1
+ 1704 0074 E6D1     		bne	.L116
+ 308:software/scr/node_lora.c ****                     tskIDLE_PRIORITY + 3U, &radio_task_handle) != pdPASS) return 0U;
+ 1705              		.loc 1 308 9 view .LVU404
+ 1706 0076 134B     		ldr	r3, .L122+40
+ 1707 0078 0193     		str	r3, [sp, #4]
+ 1708 007a 0323     		movs	r3, #3
+ 1709 007c 0093     		str	r3, [sp]
+ 1710 007e 0023     		movs	r3, #0
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 40
+
+
+ 1711 0080 4FF40072 		mov	r2, #512
+ 1712 0084 1049     		ldr	r1, .L122+44
+ 1713 0086 1148     		ldr	r0, .L122+48
+ 1714 0088 FFF7FEFF 		bl	xTaskCreate
+ 1715              	.LVL148:
+ 307:software/scr/node_lora.c ****         xTaskCreate(radio_task, "radio", 512U, 0,
+ 1716              		.loc 1 307 57 view .LVU405
+ 1717 008c 0128     		cmp	r0, #1
+ 1718 008e D9D1     		bne	.L116
+ 310:software/scr/node_lora.c **** }
+ 1719              		.loc 1 310 12 view .LVU406
+ 1720 0090 0120     		movs	r0, #1
+ 1721 0092 D8E7     		b	.L115
+ 1722              	.L117:
+ 300:software/scr/node_lora.c **** 
+ 1723              		.loc 1 300 51 discriminator 3 view .LVU407
+ 1724 0094 0020     		movs	r0, #0
+ 1725 0096 D6E7     		b	.L115
+ 1726              	.L118:
+ 1727 0098 0020     		movs	r0, #0
+ 1728 009a D4E7     		b	.L115
+ 1729              	.L123:
+ 1730              		.align	2
+ 1731              	.L122:
+ 1732 009c 00000000 		.word	node_state
+ 1733 00a0 00000000 		.word	state_mutex
+ 1734 00a4 00000000 		.word	tx_queue
+ 1735 00a8 00000000 		.word	monitor_task_handle
+ 1736 00ac 00000000 		.word	.LC6
+ 1737 00b0 00000000 		.word	monitor_task
+ 1738 00b4 08000000 		.word	.LC7
+ 1739 00b8 00000000 		.word	dht_task
+ 1740 00bc 0C000000 		.word	.LC8
+ 1741 00c0 00000000 		.word	power_task
+ 1742 00c4 00000000 		.word	radio_task_handle
+ 1743 00c8 14000000 		.word	.LC9
+ 1744 00cc 00000000 		.word	radio_task
+ 1745              		.cfi_endproc
+ 1746              	.LFE89:
+ 1748              		.section	.bss.packet_sequence,"aw",%nobits
+ 1749              		.align	1
+ 1752              	packet_sequence:
+ 1753 0000 0000     		.space	2
+ 1754              		.section	.bss.monitor_task_handle,"aw",%nobits
+ 1755              		.align	2
+ 1758              	monitor_task_handle:
+ 1759 0000 00000000 		.space	4
+ 1760              		.section	.bss.radio_task_handle,"aw",%nobits
+ 1761              		.align	2
+ 1764              	radio_task_handle:
+ 1765 0000 00000000 		.space	4
+ 1766              		.section	.bss.tx_queue,"aw",%nobits
+ 1767              		.align	2
+ 1770              	tx_queue:
+ 1771 0000 00000000 		.space	4
+ 1772              		.section	.bss.state_mutex,"aw",%nobits
+ 1773              		.align	2
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 41
+
+
+ 1776              	state_mutex:
+ 1777 0000 00000000 		.space	4
+ 1778              		.section	.bss.node_state,"aw",%nobits
+ 1779              		.align	2
+ 1782              	node_state:
+ 1783 0000 00000000 		.space	44
+ 1783      00000000 
+ 1783      00000000 
+ 1783      00000000 
+ 1783      00000000 
+ 1784              		.section	.bss.node_radio,"aw",%nobits
+ 1785              		.align	2
+ 1788              	node_radio:
+ 1789 0000 00000000 		.space	44
+ 1789      00000000 
+ 1789      00000000 
+ 1789      00000000 
+ 1789      00000000 
+ 1790              		.text
+ 1791              	.Letext0:
+ 1792              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 1793              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/lib/gcc/arm-none-eabi/13
+ 1794              		.file 4 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 1795              		.file 5 "Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h"
+ 1796              		.file 6 "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h"
+ 1797              		.file 7 "Middlewares/Third_Party/FreeRTOS/Source/include/task.h"
+ 1798              		.file 8 "Middlewares/Third_Party/FreeRTOS/Source/include/queue.h"
+ 1799              		.file 9 "Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h"
+ 1800              		.file 10 "software/inc/types.h"
+ 1801              		.file 11 "hardware/dht11/inc/dht11.h"
+ 1802              		.file 12 "Drivers/CMSIS/Device/ST/STM32F1xx/Include/stm32f103xb.h"
+ 1803              		.file 13 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_def.h"
+ 1804              		.file 14 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_gpio.h"
+ 1805              		.file 15 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h"
+ 1806              		.file 16 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_iwdg.h"
+ 1807              		.file 17 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_spi.h"
+ 1808              		.file 18 "Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h"
+ 1809              		.file 19 "hardware/lora/inc/LoRa.h"
+ 1810              		.file 20 "software/inc/lora_data.h"
+ 1811              		.file 21 "software/inc/node_state.h"
+ 1812              		.file 22 "Core/Inc/iwdg.h"
+ 1813              		.file 23 "Core/Inc/spi.h"
+ 1814              		.file 24 "Core/Inc/usart.h"
+ 1815              		.file 25 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/s
+ 1816              		.file 26 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/s
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 42
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 node_lora.c
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:19     .text.queue_telemetry:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:24     .text.queue_telemetry:00000000 queue_telemetry
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:66     .text.queue_telemetry:00000020 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1770   .bss.tx_queue:00000000 tx_queue
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:71     .text.radio_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:76     .text.radio_init:00000000 radio_init
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:194    .text.radio_init:00000088 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1788   .bss.node_radio:00000000 node_radio
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:202    .text.create_telemetry_packet:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:207    .text.create_telemetry_packet:00000000 create_telemetry_packet
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:327    .text.create_telemetry_packet:00000084 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1776   .bss.state_mutex:00000000 state_mutex
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1782   .bss.node_state:00000000 node_state
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1752   .bss.packet_sequence:00000000 packet_sequence
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:334    .text.transmit_control:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:339    .text.transmit_control:00000000 transmit_control
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:379    .text.transmit_control:00000020 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:384    .text.set_leds:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:389    .text.set_leds:00000000 set_leds
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:444    .text.set_leds:00000038 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:450    .text.uart_log:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:455    .text.uart_log:00000000 uart_log
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:487    .text.uart_log:00000018 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:492    .text.monitor_task:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:497    .text.monitor_task:00000000 monitor_task
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:588    .text.monitor_task:00000058 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:595    .rodata.handle_config.str1.4:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:599    .text.handle_config:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:604    .text.handle_config:00000000 handle_config
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:728    .text.handle_config:0000008c $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:735    .text.handle_heartbeat:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:740    .text.handle_heartbeat:00000000 handle_heartbeat
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:793    .text.process_received_frame:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:798    .text.process_received_frame:00000000 process_received_frame
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:894    .text.wait_for_ack:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:899    .text.wait_for_ack:00000000 wait_for_ack
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1015   .text.wait_for_ack:00000060 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1021   .text.send_with_ack:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1026   .text.send_with_ack:00000000 send_with_ack
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1097   .text.send_with_ack:0000003c $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1102   .rodata.radio_task.str1.4:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1118   .text.radio_task:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1123   .text.radio_task:00000000 radio_task
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1327   .text.radio_task:000000ec $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1343   .text.power_task:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1348   .text.power_task:00000000 power_task
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1417   .text.power_task:00000050 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1758   .bss.monitor_task_handle:00000000 monitor_task_handle
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1424   .text.dht_task:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1429   .text.dht_task:00000000 dht_task
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1511   .text.dht_task:0000005c $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1518   .text.node_lora_dio0_isr:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1524   .text.node_lora_dio0_isr:00000000 node_lora_dio0_isr
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1580   .text.node_lora_dio0_isr:00000034 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1764   .bss.radio_task_handle:00000000 radio_task_handle
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s 			page 43
+
+
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1585   .rodata.node_init.str1.4:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1598   .text.node_init:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1604   .text.node_init:00000000 node_init
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1732   .text.node_init:0000009c $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1749   .bss.packet_sequence:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1755   .bss.monitor_task_handle:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1761   .bss.radio_task_handle:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1767   .bss.tx_queue:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1773   .bss.state_mutex:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1779   .bss.node_state:00000000 $d
+C:\Users\Admin\AppData\Local\Temp\ccpPwalx.s:1785   .bss.node_radio:00000000 $d
+
+UNDEFINED SYMBOLS
+xQueueGenericSend
+newLoRa
+LoRa_init
+LoRa_setSyncWord
+LoRa_startReceiving
+hspi1
+xQueueSemaphoreTake
+node_state_snapshot
+crc16_modbus
+LoRa_transmit
+HAL_GPIO_WritePin
+strlen
+HAL_UART_Transmit
+huart1
+xTaskGetTickCount
+ulTaskNotifyTake
+node_state_evaluate
+lora_decode_config
+node_state_apply_limits
+lora_encode_control_reply
+lora_decode_heartbeat
+lora_encode_heartbeat
+HAL_IWDG_Refresh
+LoRa_receive
+hiwdg
+HAL_GPIO_TogglePin
+vTaskDelay
+snprintf
+xQueueReceive
+node_state_update_power
+xTaskGenericNotify
+vTaskDelayUntil
+dht11_read
+node_state_update_dht
+vTaskNotifyGiveFromISR
+node_state_init
+xQueueCreateMutex
+xQueueGenericCreate
+xTaskCreate

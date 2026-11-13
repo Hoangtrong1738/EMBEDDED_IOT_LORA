@@ -1,0 +1,992 @@
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 1
+
+
+   1              		.cpu cortex-m3
+   2              		.arch armv7-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 1
+  12              		.eabi_attribute 18, 4
+  13              		.file	"lora_data.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "software/scr/lora_data.c"
+  18              		.section	.text.read_u16_le,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.thumb
+  22              		.thumb_func
+  24              	read_u16_le:
+  25              	.LVL0:
+  26              	.LFB3:
+   1:software/scr/lora_data.c **** /*
+   2:software/scr/lora_data.c ****  * lora_data.c
+   3:software/scr/lora_data.c ****  *
+   4:software/scr/lora_data.c ****  *  Created on: Oct 26, 2026
+   5:software/scr/lora_data.c ****  *      Author: Admin
+   6:software/scr/lora_data.c ****  */
+   7:software/scr/lora_data.c **** 
+   8:software/scr/lora_data.c **** #include "lora_data.h"
+   9:software/scr/lora_data.c **** 
+  10:software/scr/lora_data.c **** _Static_assert(sizeof(lora_data_pkt_t) == 25U, "telemetry wire size");
+  11:software/scr/lora_data.c **** _Static_assert(sizeof(ack_t) == 4U, "telemetry ACK wire size");
+  12:software/scr/lora_data.c **** _Static_assert(sizeof(node_config_cmd_t) == NODE_CONFIG_FRAME_SIZE,
+  13:software/scr/lora_data.c ****                "config wire size");
+  14:software/scr/lora_data.c **** _Static_assert(sizeof(node_config_ack_t) == NODE_CONTROL_REPLY_SIZE,
+  15:software/scr/lora_data.c ****                "config ACK wire size");
+  16:software/scr/lora_data.c **** _Static_assert(sizeof(node_heartbeat_t) == NODE_HEARTBEAT_FRAME_SIZE,
+  17:software/scr/lora_data.c ****                "heartbeat wire size");
+  18:software/scr/lora_data.c **** 
+  19:software/scr/lora_data.c **** static u16 read_u16_le(const u8 *data)
+  20:software/scr/lora_data.c **** {
+  27              		.loc 1 20 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		@ link register save eliminated.
+  21:software/scr/lora_data.c **** 	return (u16)data[0] | ((u16)data[1] << 8U);
+  32              		.loc 1 21 2 view .LVU1
+  33              		.loc 1 21 18 is_stmt 0 view .LVU2
+  34 0000 0378     		ldrb	r3, [r0]	@ zero_extendqisi2
+  35              		.loc 1 21 34 view .LVU3
+  36 0002 4078     		ldrb	r0, [r0, #1]	@ zero_extendqisi2
+  37              	.LVL1:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 2
+
+
+  22:software/scr/lora_data.c **** }
+  38              		.loc 1 22 1 view .LVU4
+  39 0004 43EA0020 		orr	r0, r3, r0, lsl #8
+  40 0008 7047     		bx	lr
+  41              		.cfi_endproc
+  42              	.LFE3:
+  44              		.section	.text.read_u32_le,"ax",%progbits
+  45              		.align	1
+  46              		.syntax unified
+  47              		.thumb
+  48              		.thumb_func
+  50              	read_u32_le:
+  51              	.LVL2:
+  52              	.LFB4:
+  23:software/scr/lora_data.c **** 
+  24:software/scr/lora_data.c **** static u32 read_u32_le(const u8 *data)
+  25:software/scr/lora_data.c **** {
+  53              		.loc 1 25 1 is_stmt 1 view -0
+  54              		.cfi_startproc
+  55              		@ args = 0, pretend = 0, frame = 0
+  56              		@ frame_needed = 0, uses_anonymous_args = 0
+  57              		@ link register save eliminated.
+  26:software/scr/lora_data.c **** 	return (u32)data[0] | ((u32)data[1] << 8U) |
+  58              		.loc 1 26 2 view .LVU6
+  59              		.loc 1 26 18 is_stmt 0 view .LVU7
+  60 0000 0378     		ldrb	r3, [r0]	@ zero_extendqisi2
+  61              		.loc 1 26 34 view .LVU8
+  62 0002 4278     		ldrb	r2, [r0, #1]	@ zero_extendqisi2
+  63              		.loc 1 26 22 view .LVU9
+  64 0004 43EA0223 		orr	r3, r3, r2, lsl #8
+  27:software/scr/lora_data.c **** 	       ((u32)data[2] << 16U) | ((u32)data[3] << 24U);
+  65              		.loc 1 27 19 view .LVU10
+  66 0008 8278     		ldrb	r2, [r0, #2]	@ zero_extendqisi2
+  26:software/scr/lora_data.c **** 	return (u32)data[0] | ((u32)data[1] << 8U) |
+  67              		.loc 1 26 45 view .LVU11
+  68 000a 43EA0243 		orr	r3, r3, r2, lsl #16
+  69              		.loc 1 27 43 view .LVU12
+  70 000e C078     		ldrb	r0, [r0, #3]	@ zero_extendqisi2
+  71              	.LVL3:
+  28:software/scr/lora_data.c **** }
+  72              		.loc 1 28 1 view .LVU13
+  73 0010 43EA0060 		orr	r0, r3, r0, lsl #24
+  74 0014 7047     		bx	lr
+  75              		.cfi_endproc
+  76              	.LFE4:
+  78              		.section	.text.write_u16_le,"ax",%progbits
+  79              		.align	1
+  80              		.syntax unified
+  81              		.thumb
+  82              		.thumb_func
+  84              	write_u16_le:
+  85              	.LVL4:
+  86              	.LFB5:
+  29:software/scr/lora_data.c **** 
+  30:software/scr/lora_data.c **** static void write_u16_le(u8 *data, u16 value)
+  31:software/scr/lora_data.c **** {
+  87              		.loc 1 31 1 is_stmt 1 view -0
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 3
+
+
+  88              		.cfi_startproc
+  89              		@ args = 0, pretend = 0, frame = 0
+  90              		@ frame_needed = 0, uses_anonymous_args = 0
+  91              		@ link register save eliminated.
+  32:software/scr/lora_data.c **** 	data[0] = (u8)value;
+  92              		.loc 1 32 2 view .LVU15
+  93              		.loc 1 32 10 is_stmt 0 view .LVU16
+  94 0000 0170     		strb	r1, [r0]
+  33:software/scr/lora_data.c **** 	data[1] = (u8)(value >> 8U);
+  95              		.loc 1 33 2 is_stmt 1 view .LVU17
+  96              		.loc 1 33 12 is_stmt 0 view .LVU18
+  97 0002 090A     		lsrs	r1, r1, #8
+  98              	.LVL5:
+  99              		.loc 1 33 10 view .LVU19
+ 100 0004 4170     		strb	r1, [r0, #1]
+  34:software/scr/lora_data.c **** }
+ 101              		.loc 1 34 1 view .LVU20
+ 102 0006 7047     		bx	lr
+ 103              		.cfi_endproc
+ 104              	.LFE5:
+ 106              		.section	.text.crc16_modbus,"ax",%progbits
+ 107              		.align	1
+ 108              		.global	crc16_modbus
+ 109              		.syntax unified
+ 110              		.thumb
+ 111              		.thumb_func
+ 113              	crc16_modbus:
+ 114              	.LVL6:
+ 115              	.LFB6:
+  35:software/scr/lora_data.c **** 
+  36:software/scr/lora_data.c **** 
+  37:software/scr/lora_data.c **** u16 crc16_modbus(const u8 *d, u8 len)
+  38:software/scr/lora_data.c **** {
+ 116              		.loc 1 38 1 is_stmt 1 view -0
+ 117              		.cfi_startproc
+ 118              		@ args = 0, pretend = 0, frame = 0
+ 119              		@ frame_needed = 0, uses_anonymous_args = 0
+ 120              		@ link register save eliminated.
+ 121              		.loc 1 38 1 is_stmt 0 view .LVU22
+ 122 0000 8446     		mov	ip, r0
+  39:software/scr/lora_data.c **** 	u16 crc = 0xFFFF;
+ 123              		.loc 1 39 2 is_stmt 1 view .LVU23
+ 124              	.LVL7:
+  40:software/scr/lora_data.c **** 	while(len--)
+ 125              		.loc 1 40 2 view .LVU24
+  39:software/scr/lora_data.c **** 	u16 crc = 0xFFFF;
+ 126              		.loc 1 39 6 is_stmt 0 view .LVU25
+ 127 0002 4FF6FF70 		movw	r0, #65535
+ 128              	.LVL8:
+ 129              	.L5:
+ 130              		.loc 1 40 8 is_stmt 1 view .LVU26
+ 131 0006 0B46     		mov	r3, r1
+ 132              		.loc 1 40 11 is_stmt 0 view .LVU27
+ 133 0008 0139     		subs	r1, r1, #1
+ 134              	.LVL9:
+ 135              		.loc 1 40 11 view .LVU28
+ 136 000a C9B2     		uxtb	r1, r1
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 4
+
+
+ 137              	.LVL10:
+ 138              		.loc 1 40 8 view .LVU29
+ 139 000c 8BB1     		cbz	r3, .L11
+  41:software/scr/lora_data.c **** 	{
+  42:software/scr/lora_data.c **** 		crc ^= *d++;
+ 140              		.loc 1 42 3 is_stmt 1 view .LVU30
+ 141              	.LVL11:
+ 142              		.loc 1 42 10 is_stmt 0 view .LVU31
+ 143 000e 1CF8013B 		ldrb	r3, [ip], #1	@ zero_extendqisi2
+ 144              	.LVL12:
+ 145              		.loc 1 42 7 view .LVU32
+ 146 0012 5840     		eors	r0, r0, r3
+ 147              	.LVL13:
+  43:software/scr/lora_data.c **** 		for(u8 i=0;i<8;i++)
+ 148              		.loc 1 43 3 is_stmt 1 view .LVU33
+ 149              	.LBB2:
+ 150              		.loc 1 43 7 view .LVU34
+ 151              		.loc 1 43 10 is_stmt 0 view .LVU35
+ 152 0014 0023     		movs	r3, #0
+ 153              		.loc 1 43 3 view .LVU36
+ 154 0016 02E0     		b	.L6
+ 155              	.LVL14:
+ 156              	.L7:
+  44:software/scr/lora_data.c **** 		{
+  45:software/scr/lora_data.c **** 			crc =(crc&1) ? (crc>>1) ^ 0xA001 : (crc >> 1);
+ 157              		.loc 1 45 8 discriminator 2 view .LVU37
+ 158 0018 4008     		lsrs	r0, r0, #1
+ 159              	.LVL15:
+ 160              	.L8:
+  43:software/scr/lora_data.c **** 		for(u8 i=0;i<8;i++)
+ 161              		.loc 1 43 19 is_stmt 1 discriminator 2 view .LVU38
+ 162 001a 0133     		adds	r3, r3, #1
+ 163              	.LVL16:
+  43:software/scr/lora_data.c **** 		for(u8 i=0;i<8;i++)
+ 164              		.loc 1 43 19 is_stmt 0 discriminator 2 view .LVU39
+ 165 001c DBB2     		uxtb	r3, r3
+ 166              	.LVL17:
+ 167              	.L6:
+  43:software/scr/lora_data.c **** 		for(u8 i=0;i<8;i++)
+ 168              		.loc 1 43 15 is_stmt 1 discriminator 1 view .LVU40
+ 169 001e 072B     		cmp	r3, #7
+ 170 0020 F1D8     		bhi	.L5
+ 171              		.loc 1 45 4 view .LVU41
+ 172              		.loc 1 45 8 is_stmt 0 view .LVU42
+ 173 0022 10F0010F 		tst	r0, #1
+ 174 0026 F7D0     		beq	.L7
+ 175              		.loc 1 45 8 discriminator 1 view .LVU43
+ 176 0028 4AF20102 		movw	r2, #40961
+ 177 002c 82EA5000 		eor	r0, r2, r0, lsr #1
+ 178              	.LVL18:
+ 179              		.loc 1 45 8 discriminator 1 view .LVU44
+ 180 0030 F3E7     		b	.L8
+ 181              	.LVL19:
+ 182              	.L11:
+ 183              		.loc 1 45 8 discriminator 1 view .LVU45
+ 184              	.LBE2:
+  46:software/scr/lora_data.c **** 		}
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 5
+
+
+  47:software/scr/lora_data.c **** 	}
+  48:software/scr/lora_data.c **** 	return crc;
+ 185              		.loc 1 48 2 is_stmt 1 view .LVU46
+  49:software/scr/lora_data.c **** }
+ 186              		.loc 1 49 1 is_stmt 0 view .LVU47
+ 187 0032 7047     		bx	lr
+ 188              		.cfi_endproc
+ 189              	.LFE6:
+ 191              		.section	.text.valid_control_frame,"ax",%progbits
+ 192              		.align	1
+ 193              		.syntax unified
+ 194              		.thumb
+ 195              		.thumb_func
+ 197              	valid_control_frame:
+ 198              	.LVL20:
+ 199              	.LFB7:
+  50:software/scr/lora_data.c **** 
+  51:software/scr/lora_data.c **** static u8 valid_control_frame(const u8 *frame, u8 length, u8 expected_length,
+  52:software/scr/lora_data.c **** 						      u8 expected_type)
+  53:software/scr/lora_data.c **** {
+ 200              		.loc 1 53 1 is_stmt 1 view -0
+ 201              		.cfi_startproc
+ 202              		@ args = 0, pretend = 0, frame = 0
+ 203              		@ frame_needed = 0, uses_anonymous_args = 0
+  54:software/scr/lora_data.c **** 	u16 received_crc;
+ 204              		.loc 1 54 2 view .LVU49
+  55:software/scr/lora_data.c **** 
+  56:software/scr/lora_data.c **** 	if (frame == 0 || length != expected_length || frame[0] != PKT_MAGIC ||
+ 205              		.loc 1 56 2 view .LVU50
+ 206              		.loc 1 56 5 is_stmt 0 view .LVU51
+ 207 0000 D0B1     		cbz	r0, .L14
+  53:software/scr/lora_data.c **** 	u16 received_crc;
+ 208              		.loc 1 53 1 view .LVU52
+ 209 0002 70B5     		push	{r4, r5, r6, lr}
+ 210              	.LCFI0:
+ 211              		.cfi_def_cfa_offset 16
+ 212              		.cfi_offset 4, -16
+ 213              		.cfi_offset 5, -12
+ 214              		.cfi_offset 6, -8
+ 215              		.cfi_offset 14, -4
+ 216 0004 0546     		mov	r5, r0
+ 217              		.loc 1 56 17 discriminator 1 view .LVU53
+ 218 0006 9142     		cmp	r1, r2
+ 219 0008 18D1     		bne	.L15
+ 220              		.loc 1 56 54 discriminator 2 view .LVU54
+ 221 000a 0278     		ldrb	r2, [r0]	@ zero_extendqisi2
+ 222              	.LVL21:
+ 223              		.loc 1 56 46 discriminator 2 view .LVU55
+ 224 000c A52A     		cmp	r2, #165
+ 225 000e 17D1     		bne	.L16
+  57:software/scr/lora_data.c **** 		frame[1] != expected_type || frame[2] != Node_ID) {
+ 226              		.loc 1 57 8 view .LVU56
+ 227 0010 4278     		ldrb	r2, [r0, #1]	@ zero_extendqisi2
+  56:software/scr/lora_data.c **** 		frame[1] != expected_type || frame[2] != Node_ID) {
+ 228              		.loc 1 56 71 discriminator 3 view .LVU57
+ 229 0012 9A42     		cmp	r2, r3
+ 230 0014 16D1     		bne	.L17
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 6
+
+
+ 231              		.loc 1 57 37 view .LVU58
+ 232 0016 8378     		ldrb	r3, [r0, #2]	@ zero_extendqisi2
+ 233              	.LVL22:
+ 234              		.loc 1 57 29 view .LVU59
+ 235 0018 012B     		cmp	r3, #1
+ 236 001a 15D1     		bne	.L18
+  58:software/scr/lora_data.c **** 		return 0U;
+  59:software/scr/lora_data.c **** 	}
+  60:software/scr/lora_data.c **** 	received_crc = read_u16_le(&frame[length - 2U]);
+ 237              		.loc 1 60 2 is_stmt 1 view .LVU60
+ 238              		.loc 1 60 35 is_stmt 0 view .LVU61
+ 239 001c 8C1E     		subs	r4, r1, #2
+ 240              		.loc 1 60 17 view .LVU62
+ 241 001e 2044     		add	r0, r0, r4
+ 242              	.LVL23:
+ 243              		.loc 1 60 17 view .LVU63
+ 244 0020 FFF7FEFF 		bl	read_u16_le
+ 245              	.LVL24:
+ 246              		.loc 1 60 17 view .LVU64
+ 247 0024 0646     		mov	r6, r0
+ 248              	.LVL25:
+  61:software/scr/lora_data.c **** 	return (u8)(received_crc == crc16_modbus(frame, (u8)(length - 2U)));
+ 249              		.loc 1 61 2 is_stmt 1 view .LVU65
+ 250              		.loc 1 61 30 is_stmt 0 view .LVU66
+ 251 0026 E1B2     		uxtb	r1, r4
+ 252 0028 2846     		mov	r0, r5
+ 253 002a FFF7FEFF 		bl	crc16_modbus
+ 254              	.LVL26:
+ 255              		.loc 1 61 9 discriminator 1 view .LVU67
+ 256 002e B042     		cmp	r0, r6
+ 257 0030 14BF     		ite	ne
+ 258 0032 0020     		movne	r0, #0
+ 259 0034 0120     		moveq	r0, #1
+ 260              		.loc 1 61 9 view .LVU68
+ 261 0036 02E0     		b	.L13
+ 262              	.LVL27:
+ 263              	.L14:
+ 264              	.LCFI1:
+ 265              		.cfi_def_cfa_offset 0
+ 266              		.cfi_restore 4
+ 267              		.cfi_restore 5
+ 268              		.cfi_restore 6
+ 269              		.cfi_restore 14
+  58:software/scr/lora_data.c **** 		return 0U;
+ 270              		.loc 1 58 10 view .LVU69
+ 271 0038 0020     		movs	r0, #0
+ 272              	.LVL28:
+  62:software/scr/lora_data.c **** }
+ 273              		.loc 1 62 1 view .LVU70
+ 274 003a 7047     		bx	lr
+ 275              	.LVL29:
+ 276              	.L15:
+ 277              	.LCFI2:
+ 278              		.cfi_def_cfa_offset 16
+ 279              		.cfi_offset 4, -16
+ 280              		.cfi_offset 5, -12
+ 281              		.cfi_offset 6, -8
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 7
+
+
+ 282              		.cfi_offset 14, -4
+  58:software/scr/lora_data.c **** 		return 0U;
+ 283              		.loc 1 58 10 view .LVU71
+ 284 003c 0020     		movs	r0, #0
+ 285              	.LVL30:
+ 286              	.L13:
+ 287              		.loc 1 62 1 view .LVU72
+ 288 003e 70BD     		pop	{r4, r5, r6, pc}
+ 289              	.LVL31:
+ 290              	.L16:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 291              		.loc 1 58 10 view .LVU73
+ 292 0040 0020     		movs	r0, #0
+ 293              	.LVL32:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 294              		.loc 1 58 10 view .LVU74
+ 295 0042 FCE7     		b	.L13
+ 296              	.LVL33:
+ 297              	.L17:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 298              		.loc 1 58 10 view .LVU75
+ 299 0044 0020     		movs	r0, #0
+ 300              	.LVL34:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 301              		.loc 1 58 10 view .LVU76
+ 302 0046 FAE7     		b	.L13
+ 303              	.LVL35:
+ 304              	.L18:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 305              		.loc 1 58 10 view .LVU77
+ 306 0048 0020     		movs	r0, #0
+ 307              	.LVL36:
+  58:software/scr/lora_data.c **** 		return 0U;
+ 308              		.loc 1 58 10 view .LVU78
+ 309 004a F8E7     		b	.L13
+ 310              		.cfi_endproc
+ 311              	.LFE7:
+ 313              		.section	.text.lora_decode_config,"ax",%progbits
+ 314              		.align	1
+ 315              		.global	lora_decode_config
+ 316              		.syntax unified
+ 317              		.thumb
+ 318              		.thumb_func
+ 320              	lora_decode_config:
+ 321              	.LVL37:
+ 322              	.LFB8:
+  63:software/scr/lora_data.c **** 
+  64:software/scr/lora_data.c **** u8 lora_decode_config(const u8 *frame, u8 length, node_config_cmd_t *config)
+  65:software/scr/lora_data.c **** {
+ 323              		.loc 1 65 1 is_stmt 1 view -0
+ 324              		.cfi_startproc
+ 325              		@ args = 0, pretend = 0, frame = 0
+ 326              		@ frame_needed = 0, uses_anonymous_args = 0
+  66:software/scr/lora_data.c **** 	if (config == 0 ||
+ 327              		.loc 1 66 2 view .LVU80
+ 328              		.loc 1 66 5 is_stmt 0 view .LVU81
+ 329 0000 B2B3     		cbz	r2, .L25
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 8
+
+
+  65:software/scr/lora_data.c **** 	if (config == 0 ||
+ 330              		.loc 1 65 1 view .LVU82
+ 331 0002 38B5     		push	{r3, r4, r5, lr}
+ 332              	.LCFI3:
+ 333              		.cfi_def_cfa_offset 16
+ 334              		.cfi_offset 3, -16
+ 335              		.cfi_offset 4, -12
+ 336              		.cfi_offset 5, -8
+ 337              		.cfi_offset 14, -4
+ 338 0004 0446     		mov	r4, r0
+ 339 0006 1546     		mov	r5, r2
+  67:software/scr/lora_data.c **** 		!valid_control_frame(frame, length, NODE_CONFIG_FRAME_SIZE,
+ 340              		.loc 1 67 4 view .LVU83
+ 341 0008 C123     		movs	r3, #193
+ 342 000a 1522     		movs	r2, #21
+ 343              	.LVL38:
+ 344              		.loc 1 67 4 view .LVU84
+ 345 000c FFF7FEFF 		bl	valid_control_frame
+ 346              	.LVL39:
+  66:software/scr/lora_data.c **** 	if (config == 0 ||
+ 347              		.loc 1 66 18 discriminator 1 view .LVU85
+ 348 0010 68B3     		cbz	r0, .L24
+  68:software/scr/lora_data.c **** 						 MSG_NODE_CONFIG)) {
+  69:software/scr/lora_data.c **** 		return 0U;
+  70:software/scr/lora_data.c **** 	}
+  71:software/scr/lora_data.c **** 
+  72:software/scr/lora_data.c **** 	config->magic = frame[0];
+ 349              		.loc 1 72 2 is_stmt 1 view .LVU86
+ 350              		.loc 1 72 23 is_stmt 0 view .LVU87
+ 351 0012 2378     		ldrb	r3, [r4]	@ zero_extendqisi2
+ 352              		.loc 1 72 16 view .LVU88
+ 353 0014 2B70     		strb	r3, [r5]
+  73:software/scr/lora_data.c **** 	config->type = frame[1];
+ 354              		.loc 1 73 2 is_stmt 1 view .LVU89
+ 355              		.loc 1 73 22 is_stmt 0 view .LVU90
+ 356 0016 6378     		ldrb	r3, [r4, #1]	@ zero_extendqisi2
+ 357              		.loc 1 73 15 view .LVU91
+ 358 0018 6B70     		strb	r3, [r5, #1]
+  74:software/scr/lora_data.c **** 	config->node_id = frame[2];
+ 359              		.loc 1 74 2 is_stmt 1 view .LVU92
+ 360              		.loc 1 74 25 is_stmt 0 view .LVU93
+ 361 001a A378     		ldrb	r3, [r4, #2]	@ zero_extendqisi2
+ 362              		.loc 1 74 18 view .LVU94
+ 363 001c AB70     		strb	r3, [r5, #2]
+  75:software/scr/lora_data.c **** 	config->seq = read_u16_le(&frame[3]);
+ 364              		.loc 1 75 2 is_stmt 1 view .LVU95
+ 365              		.loc 1 75 16 is_stmt 0 view .LVU96
+ 366 001e E01C     		adds	r0, r4, #3
+ 367 0020 FFF7FEFF 		bl	read_u16_le
+ 368              	.LVL40:
+ 369              		.loc 1 75 14 discriminator 1 view .LVU97
+ 370 0024 A5F80300 		strh	r0, [r5, #3]	@ unaligned
+  76:software/scr/lora_data.c **** 	config->voltage_limit = read_u16_le(&frame[5]);
+ 371              		.loc 1 76 2 is_stmt 1 view .LVU98
+ 372              		.loc 1 76 26 is_stmt 0 view .LVU99
+ 373 0028 601D     		adds	r0, r4, #5
+ 374 002a FFF7FEFF 		bl	read_u16_le
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 9
+
+
+ 375              	.LVL41:
+ 376              		.loc 1 76 24 discriminator 1 view .LVU100
+ 377 002e A5F80500 		strh	r0, [r5, #5]	@ unaligned
+  77:software/scr/lora_data.c **** 	config->current_limit_ma = read_u32_le(&frame[7]);
+ 378              		.loc 1 77 2 is_stmt 1 view .LVU101
+ 379              		.loc 1 77 29 is_stmt 0 view .LVU102
+ 380 0032 E01D     		adds	r0, r4, #7
+ 381 0034 FFF7FEFF 		bl	read_u32_le
+ 382              	.LVL42:
+ 383              		.loc 1 77 27 discriminator 1 view .LVU103
+ 384 0038 C5F80700 		str	r0, [r5, #7]	@ unaligned
+  78:software/scr/lora_data.c **** 	config->power_limit_mw = read_u32_le(&frame[11]);
+ 385              		.loc 1 78 2 is_stmt 1 view .LVU104
+ 386              		.loc 1 78 27 is_stmt 0 view .LVU105
+ 387 003c 04F10B00 		add	r0, r4, #11
+ 388 0040 FFF7FEFF 		bl	read_u32_le
+ 389              	.LVL43:
+ 390              		.loc 1 78 25 discriminator 1 view .LVU106
+ 391 0044 C5F80B00 		str	r0, [r5, #11]	@ unaligned
+  79:software/scr/lora_data.c **** 	config->temp_limit = (i16)read_u16_le(&frame[15]);
+ 392              		.loc 1 79 2 is_stmt 1 view .LVU107
+ 393              		.loc 1 79 28 is_stmt 0 view .LVU108
+ 394 0048 04F10F00 		add	r0, r4, #15
+ 395 004c FFF7FEFF 		bl	read_u16_le
+ 396              	.LVL44:
+ 397              		.loc 1 79 21 discriminator 1 view .LVU109
+ 398 0050 A5F80F00 		strh	r0, [r5, #15]	@ unaligned
+  80:software/scr/lora_data.c **** 	config->hum_limit = read_u16_le(&frame[17]);
+ 399              		.loc 1 80 2 is_stmt 1 view .LVU110
+ 400              		.loc 1 80 22 is_stmt 0 view .LVU111
+ 401 0054 04F11100 		add	r0, r4, #17
+ 402 0058 FFF7FEFF 		bl	read_u16_le
+ 403              	.LVL45:
+ 404              		.loc 1 80 20 discriminator 1 view .LVU112
+ 405 005c A5F81100 		strh	r0, [r5, #17]	@ unaligned
+  81:software/scr/lora_data.c **** 	config->crc16 = read_u16_le(&frame[19]);
+ 406              		.loc 1 81 2 is_stmt 1 view .LVU113
+ 407              		.loc 1 81 18 is_stmt 0 view .LVU114
+ 408 0060 04F11300 		add	r0, r4, #19
+ 409 0064 FFF7FEFF 		bl	read_u16_le
+ 410              	.LVL46:
+ 411              		.loc 1 81 16 discriminator 1 view .LVU115
+ 412 0068 A5F81300 		strh	r0, [r5, #19]	@ unaligned
+  82:software/scr/lora_data.c **** 	return 1U;
+ 413              		.loc 1 82 2 is_stmt 1 view .LVU116
+ 414              		.loc 1 82 9 is_stmt 0 view .LVU117
+ 415 006c 0120     		movs	r0, #1
+ 416              	.L24:
+  83:software/scr/lora_data.c **** }
+ 417              		.loc 1 83 1 view .LVU118
+ 418 006e 38BD     		pop	{r3, r4, r5, pc}
+ 419              	.LVL47:
+ 420              	.L25:
+ 421              	.LCFI4:
+ 422              		.cfi_def_cfa_offset 0
+ 423              		.cfi_restore 3
+ 424              		.cfi_restore 4
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 10
+
+
+ 425              		.cfi_restore 5
+ 426              		.cfi_restore 14
+  69:software/scr/lora_data.c **** 	}
+ 427              		.loc 1 69 10 view .LVU119
+ 428 0070 0020     		movs	r0, #0
+ 429              	.LVL48:
+ 430              		.loc 1 83 1 view .LVU120
+ 431 0072 7047     		bx	lr
+ 432              		.cfi_endproc
+ 433              	.LFE8:
+ 435              		.section	.text.lora_decode_heartbeat,"ax",%progbits
+ 436              		.align	1
+ 437              		.global	lora_decode_heartbeat
+ 438              		.syntax unified
+ 439              		.thumb
+ 440              		.thumb_func
+ 442              	lora_decode_heartbeat:
+ 443              	.LVL49:
+ 444              	.LFB9:
+  84:software/scr/lora_data.c **** 
+  85:software/scr/lora_data.c **** u8 lora_decode_heartbeat(const u8 *frame, u8 length, u8 expected_type,
+  86:software/scr/lora_data.c **** 						 node_heartbeat_t *heartbeat)
+  87:software/scr/lora_data.c **** {
+ 445              		.loc 1 87 1 is_stmt 1 view -0
+ 446              		.cfi_startproc
+ 447              		@ args = 0, pretend = 0, frame = 0
+ 448              		@ frame_needed = 0, uses_anonymous_args = 0
+  88:software/scr/lora_data.c **** 	if (heartbeat == 0 ||
+ 449              		.loc 1 88 2 view .LVU122
+ 450              		.loc 1 88 5 is_stmt 0 view .LVU123
+ 451 0000 CBB1     		cbz	r3, .L32
+  87:software/scr/lora_data.c **** 	if (heartbeat == 0 ||
+ 452              		.loc 1 87 1 view .LVU124
+ 453 0002 38B5     		push	{r3, r4, r5, lr}
+ 454              	.LCFI5:
+ 455              		.cfi_def_cfa_offset 16
+ 456              		.cfi_offset 3, -16
+ 457              		.cfi_offset 4, -12
+ 458              		.cfi_offset 5, -8
+ 459              		.cfi_offset 14, -4
+ 460 0004 0446     		mov	r4, r0
+ 461 0006 1D46     		mov	r5, r3
+  89:software/scr/lora_data.c **** 		!valid_control_frame(frame, length, NODE_HEARTBEAT_FRAME_SIZE,
+ 462              		.loc 1 89 4 view .LVU125
+ 463 0008 1346     		mov	r3, r2
+ 464              	.LVL50:
+ 465              		.loc 1 89 4 view .LVU126
+ 466 000a 0722     		movs	r2, #7
+ 467              	.LVL51:
+ 468              		.loc 1 89 4 view .LVU127
+ 469 000c FFF7FEFF 		bl	valid_control_frame
+ 470              	.LVL52:
+  88:software/scr/lora_data.c **** 	if (heartbeat == 0 ||
+ 471              		.loc 1 88 21 discriminator 1 view .LVU128
+ 472 0010 80B1     		cbz	r0, .L31
+  90:software/scr/lora_data.c **** 						 expected_type)) {
+  91:software/scr/lora_data.c **** 		return 0U;
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 11
+
+
+  92:software/scr/lora_data.c **** 	}
+  93:software/scr/lora_data.c **** 	heartbeat->magic = frame[0];
+ 473              		.loc 1 93 2 is_stmt 1 view .LVU129
+ 474              		.loc 1 93 26 is_stmt 0 view .LVU130
+ 475 0012 2378     		ldrb	r3, [r4]	@ zero_extendqisi2
+ 476              		.loc 1 93 19 view .LVU131
+ 477 0014 2B70     		strb	r3, [r5]
+  94:software/scr/lora_data.c **** 	heartbeat->type = frame[1];
+ 478              		.loc 1 94 2 is_stmt 1 view .LVU132
+ 479              		.loc 1 94 25 is_stmt 0 view .LVU133
+ 480 0016 6378     		ldrb	r3, [r4, #1]	@ zero_extendqisi2
+ 481              		.loc 1 94 18 view .LVU134
+ 482 0018 6B70     		strb	r3, [r5, #1]
+  95:software/scr/lora_data.c **** 	heartbeat->node_id = frame[2];
+ 483              		.loc 1 95 2 is_stmt 1 view .LVU135
+ 484              		.loc 1 95 28 is_stmt 0 view .LVU136
+ 485 001a A378     		ldrb	r3, [r4, #2]	@ zero_extendqisi2
+ 486              		.loc 1 95 21 view .LVU137
+ 487 001c AB70     		strb	r3, [r5, #2]
+  96:software/scr/lora_data.c **** 	heartbeat->seq = read_u16_le(&frame[3]);
+ 488              		.loc 1 96 2 is_stmt 1 view .LVU138
+ 489              		.loc 1 96 19 is_stmt 0 view .LVU139
+ 490 001e E01C     		adds	r0, r4, #3
+ 491 0020 FFF7FEFF 		bl	read_u16_le
+ 492              	.LVL53:
+ 493              		.loc 1 96 17 discriminator 1 view .LVU140
+ 494 0024 A5F80300 		strh	r0, [r5, #3]	@ unaligned
+  97:software/scr/lora_data.c **** 	heartbeat->crc16 = read_u16_le(&frame[5]);
+ 495              		.loc 1 97 2 is_stmt 1 view .LVU141
+ 496              		.loc 1 97 21 is_stmt 0 view .LVU142
+ 497 0028 601D     		adds	r0, r4, #5
+ 498 002a FFF7FEFF 		bl	read_u16_le
+ 499              	.LVL54:
+ 500              		.loc 1 97 19 discriminator 1 view .LVU143
+ 501 002e A5F80500 		strh	r0, [r5, #5]	@ unaligned
+  98:software/scr/lora_data.c **** 	return 1U;
+ 502              		.loc 1 98 2 is_stmt 1 view .LVU144
+ 503              		.loc 1 98 9 is_stmt 0 view .LVU145
+ 504 0032 0120     		movs	r0, #1
+ 505              	.L31:
+  99:software/scr/lora_data.c **** }
+ 506              		.loc 1 99 1 view .LVU146
+ 507 0034 38BD     		pop	{r3, r4, r5, pc}
+ 508              	.LVL55:
+ 509              	.L32:
+ 510              	.LCFI6:
+ 511              		.cfi_def_cfa_offset 0
+ 512              		.cfi_restore 3
+ 513              		.cfi_restore 4
+ 514              		.cfi_restore 5
+ 515              		.cfi_restore 14
+  91:software/scr/lora_data.c **** 	}
+ 516              		.loc 1 91 10 view .LVU147
+ 517 0036 0020     		movs	r0, #0
+ 518              	.LVL56:
+ 519              		.loc 1 99 1 view .LVU148
+ 520 0038 7047     		bx	lr
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 12
+
+
+ 521              		.cfi_endproc
+ 522              	.LFE9:
+ 524              		.section	.text.lora_encode_control_reply,"ax",%progbits
+ 525              		.align	1
+ 526              		.global	lora_encode_control_reply
+ 527              		.syntax unified
+ 528              		.thumb
+ 529              		.thumb_func
+ 531              	lora_encode_control_reply:
+ 532              	.LVL57:
+ 533              	.LFB10:
+ 100:software/scr/lora_data.c **** 
+ 101:software/scr/lora_data.c **** u8 lora_encode_control_reply(u8 *frame, u8 capacity, u8 type, u16 seq,
+ 102:software/scr/lora_data.c **** 							 u8 status)
+ 103:software/scr/lora_data.c **** {
+ 534              		.loc 1 103 1 is_stmt 1 view -0
+ 535              		.cfi_startproc
+ 536              		@ args = 4, pretend = 0, frame = 0
+ 537              		@ frame_needed = 0, uses_anonymous_args = 0
+ 104:software/scr/lora_data.c **** 	u16 crc;
+ 538              		.loc 1 104 2 view .LVU150
+ 105:software/scr/lora_data.c **** 	if (frame == 0 || capacity < NODE_CONTROL_REPLY_SIZE ||
+ 539              		.loc 1 105 2 view .LVU151
+ 540              		.loc 1 105 5 is_stmt 0 view .LVU152
+ 541 0000 E8B1     		cbz	r0, .L39
+ 103:software/scr/lora_data.c **** 	u16 crc;
+ 542              		.loc 1 103 1 view .LVU153
+ 543 0002 10B5     		push	{r4, lr}
+ 544              	.LCFI7:
+ 545              		.cfi_def_cfa_offset 8
+ 546              		.cfi_offset 4, -8
+ 547              		.cfi_offset 14, -4
+ 548 0004 0446     		mov	r4, r0
+ 549              		.loc 1 105 17 discriminator 1 view .LVU154
+ 550 0006 0729     		cmp	r1, #7
+ 551 0008 1BD9     		bls	.L40
+ 552              		.loc 1 105 55 discriminator 2 view .LVU155
+ 553 000a C22A     		cmp	r2, #194
+ 554 000c 01D0     		beq	.L46
+ 106:software/scr/lora_data.c **** 		(type != MSG_NODE_CONFIG_ACK)) {
+ 107:software/scr/lora_data.c **** 		return 0U;
+ 555              		.loc 1 107 10 view .LVU156
+ 556 000e 0020     		movs	r0, #0
+ 557              	.LVL58:
+ 558              	.L38:
+ 108:software/scr/lora_data.c **** 	}
+ 109:software/scr/lora_data.c **** 	frame[0] = PKT_MAGIC;
+ 110:software/scr/lora_data.c **** 	frame[1] = type;
+ 111:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 112:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 113:software/scr/lora_data.c **** 	frame[5] = status;
+ 114:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_CONTROL_REPLY_SIZE - 2U);
+ 115:software/scr/lora_data.c **** 	write_u16_le(&frame[6], crc);
+ 116:software/scr/lora_data.c **** 	return NODE_CONTROL_REPLY_SIZE;
+ 117:software/scr/lora_data.c **** }
+ 559              		.loc 1 117 1 view .LVU157
+ 560 0010 10BD     		pop	{r4, pc}
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 13
+
+
+ 561              	.LVL59:
+ 562              	.L46:
+ 109:software/scr/lora_data.c **** 	frame[1] = type;
+ 563              		.loc 1 109 2 is_stmt 1 view .LVU158
+ 109:software/scr/lora_data.c **** 	frame[1] = type;
+ 564              		.loc 1 109 11 is_stmt 0 view .LVU159
+ 565 0012 A521     		movs	r1, #165
+ 566              	.LVL60:
+ 109:software/scr/lora_data.c **** 	frame[1] = type;
+ 567              		.loc 1 109 11 view .LVU160
+ 568 0014 0170     		strb	r1, [r0]
+ 110:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 569              		.loc 1 110 2 is_stmt 1 view .LVU161
+ 110:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 570              		.loc 1 110 11 is_stmt 0 view .LVU162
+ 571 0016 4270     		strb	r2, [r0, #1]
+ 111:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 572              		.loc 1 111 2 is_stmt 1 view .LVU163
+ 111:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 573              		.loc 1 111 11 is_stmt 0 view .LVU164
+ 574 0018 0122     		movs	r2, #1
+ 575              	.LVL61:
+ 111:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 576              		.loc 1 111 11 view .LVU165
+ 577 001a 8270     		strb	r2, [r0, #2]
+ 112:software/scr/lora_data.c **** 	frame[5] = status;
+ 578              		.loc 1 112 2 is_stmt 1 view .LVU166
+ 579 001c 1946     		mov	r1, r3
+ 580 001e 0330     		adds	r0, r0, #3
+ 581              	.LVL62:
+ 112:software/scr/lora_data.c **** 	frame[5] = status;
+ 582              		.loc 1 112 2 is_stmt 0 view .LVU167
+ 583 0020 FFF7FEFF 		bl	write_u16_le
+ 584              	.LVL63:
+ 113:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_CONTROL_REPLY_SIZE - 2U);
+ 585              		.loc 1 113 2 is_stmt 1 view .LVU168
+ 113:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_CONTROL_REPLY_SIZE - 2U);
+ 586              		.loc 1 113 11 is_stmt 0 view .LVU169
+ 587 0024 9DF80830 		ldrb	r3, [sp, #8]	@ zero_extendqisi2
+ 588 0028 6371     		strb	r3, [r4, #5]
+ 114:software/scr/lora_data.c **** 	write_u16_le(&frame[6], crc);
+ 589              		.loc 1 114 2 is_stmt 1 view .LVU170
+ 114:software/scr/lora_data.c **** 	write_u16_le(&frame[6], crc);
+ 590              		.loc 1 114 8 is_stmt 0 view .LVU171
+ 591 002a 0621     		movs	r1, #6
+ 592 002c 2046     		mov	r0, r4
+ 593 002e FFF7FEFF 		bl	crc16_modbus
+ 594              	.LVL64:
+ 595 0032 0146     		mov	r1, r0
+ 596              	.LVL65:
+ 115:software/scr/lora_data.c **** 	return NODE_CONTROL_REPLY_SIZE;
+ 597              		.loc 1 115 2 is_stmt 1 view .LVU172
+ 598 0034 A01D     		adds	r0, r4, #6
+ 599 0036 FFF7FEFF 		bl	write_u16_le
+ 600              	.LVL66:
+ 116:software/scr/lora_data.c **** }
+ 601              		.loc 1 116 2 view .LVU173
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 14
+
+
+ 116:software/scr/lora_data.c **** }
+ 602              		.loc 1 116 9 is_stmt 0 view .LVU174
+ 603 003a 0820     		movs	r0, #8
+ 604 003c E8E7     		b	.L38
+ 605              	.LVL67:
+ 606              	.L39:
+ 607              	.LCFI8:
+ 608              		.cfi_def_cfa_offset 0
+ 609              		.cfi_restore 4
+ 610              		.cfi_restore 14
+ 107:software/scr/lora_data.c **** 	}
+ 611              		.loc 1 107 10 view .LVU175
+ 612 003e 0020     		movs	r0, #0
+ 613              	.LVL68:
+ 614              		.loc 1 117 1 view .LVU176
+ 615 0040 7047     		bx	lr
+ 616              	.LVL69:
+ 617              	.L40:
+ 618              	.LCFI9:
+ 619              		.cfi_def_cfa_offset 8
+ 620              		.cfi_offset 4, -8
+ 621              		.cfi_offset 14, -4
+ 107:software/scr/lora_data.c **** 	}
+ 622              		.loc 1 107 10 view .LVU177
+ 623 0042 0020     		movs	r0, #0
+ 624              	.LVL70:
+ 107:software/scr/lora_data.c **** 	}
+ 625              		.loc 1 107 10 view .LVU178
+ 626 0044 E4E7     		b	.L38
+ 627              		.cfi_endproc
+ 628              	.LFE10:
+ 630              		.section	.text.lora_encode_heartbeat,"ax",%progbits
+ 631              		.align	1
+ 632              		.global	lora_encode_heartbeat
+ 633              		.syntax unified
+ 634              		.thumb
+ 635              		.thumb_func
+ 637              	lora_encode_heartbeat:
+ 638              	.LVL71:
+ 639              	.LFB11:
+ 118:software/scr/lora_data.c **** 
+ 119:software/scr/lora_data.c **** u8 lora_encode_heartbeat(u8 *frame, u8 capacity, u8 type, u16 seq)
+ 120:software/scr/lora_data.c **** {
+ 640              		.loc 1 120 1 is_stmt 1 view -0
+ 641              		.cfi_startproc
+ 642              		@ args = 0, pretend = 0, frame = 0
+ 643              		@ frame_needed = 0, uses_anonymous_args = 0
+ 121:software/scr/lora_data.c **** 	u16 crc;
+ 644              		.loc 1 121 2 view .LVU180
+ 122:software/scr/lora_data.c **** 	if (frame == 0 || capacity < NODE_HEARTBEAT_FRAME_SIZE ||
+ 645              		.loc 1 122 2 view .LVU181
+ 646              		.loc 1 122 5 is_stmt 0 view .LVU182
+ 647 0000 E8B1     		cbz	r0, .L49
+ 120:software/scr/lora_data.c **** 	u16 crc;
+ 648              		.loc 1 120 1 view .LVU183
+ 649 0002 10B5     		push	{r4, lr}
+ 650              	.LCFI10:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 15
+
+
+ 651              		.cfi_def_cfa_offset 8
+ 652              		.cfi_offset 4, -8
+ 653              		.cfi_offset 14, -4
+ 654 0004 0446     		mov	r4, r0
+ 655              		.loc 1 122 17 discriminator 1 view .LVU184
+ 656 0006 0629     		cmp	r1, #6
+ 657 0008 1BD9     		bls	.L50
+ 123:software/scr/lora_data.c **** 		(type != MSG_NODE_HEARTBEAT && type != MSG_NODE_HEARTBEAT_ACK)) {
+ 658              		.loc 1 123 31 view .LVU185
+ 659 000a 02F13D01 		add	r1, r2, #61
+ 660              	.LVL72:
+ 661              		.loc 1 123 31 view .LVU186
+ 662 000e C9B2     		uxtb	r1, r1
+ 122:software/scr/lora_data.c **** 	if (frame == 0 || capacity < NODE_HEARTBEAT_FRAME_SIZE ||
+ 663              		.loc 1 122 57 discriminator 2 view .LVU187
+ 664 0010 0129     		cmp	r1, #1
+ 665 0012 01D9     		bls	.L56
+ 124:software/scr/lora_data.c **** 		return 0U;
+ 666              		.loc 1 124 10 view .LVU188
+ 667 0014 0020     		movs	r0, #0
+ 668              	.LVL73:
+ 669              	.L48:
+ 125:software/scr/lora_data.c **** 	}
+ 126:software/scr/lora_data.c **** 	frame[0] = PKT_MAGIC;
+ 127:software/scr/lora_data.c **** 	frame[1] = type;
+ 128:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 129:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 130:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_HEARTBEAT_FRAME_SIZE - 2U);
+ 131:software/scr/lora_data.c **** 	write_u16_le(&frame[5], crc);
+ 132:software/scr/lora_data.c **** 	return NODE_HEARTBEAT_FRAME_SIZE;
+ 133:software/scr/lora_data.c **** }
+ 670              		.loc 1 133 1 view .LVU189
+ 671 0016 10BD     		pop	{r4, pc}
+ 672              	.LVL74:
+ 673              	.L56:
+ 126:software/scr/lora_data.c **** 	frame[1] = type;
+ 674              		.loc 1 126 2 is_stmt 1 view .LVU190
+ 126:software/scr/lora_data.c **** 	frame[1] = type;
+ 675              		.loc 1 126 11 is_stmt 0 view .LVU191
+ 676 0018 A521     		movs	r1, #165
+ 677 001a 0170     		strb	r1, [r0]
+ 127:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 678              		.loc 1 127 2 is_stmt 1 view .LVU192
+ 127:software/scr/lora_data.c **** 	frame[2] = Node_ID;
+ 679              		.loc 1 127 11 is_stmt 0 view .LVU193
+ 680 001c 4270     		strb	r2, [r0, #1]
+ 128:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 681              		.loc 1 128 2 is_stmt 1 view .LVU194
+ 128:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 682              		.loc 1 128 11 is_stmt 0 view .LVU195
+ 683 001e 0122     		movs	r2, #1
+ 684              	.LVL75:
+ 128:software/scr/lora_data.c **** 	write_u16_le(&frame[3], seq);
+ 685              		.loc 1 128 11 view .LVU196
+ 686 0020 8270     		strb	r2, [r0, #2]
+ 129:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_HEARTBEAT_FRAME_SIZE - 2U);
+ 687              		.loc 1 129 2 is_stmt 1 view .LVU197
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 16
+
+
+ 688 0022 1946     		mov	r1, r3
+ 689 0024 0330     		adds	r0, r0, #3
+ 690              	.LVL76:
+ 129:software/scr/lora_data.c **** 	crc = crc16_modbus(frame, NODE_HEARTBEAT_FRAME_SIZE - 2U);
+ 691              		.loc 1 129 2 is_stmt 0 view .LVU198
+ 692 0026 FFF7FEFF 		bl	write_u16_le
+ 693              	.LVL77:
+ 130:software/scr/lora_data.c **** 	write_u16_le(&frame[5], crc);
+ 694              		.loc 1 130 2 is_stmt 1 view .LVU199
+ 130:software/scr/lora_data.c **** 	write_u16_le(&frame[5], crc);
+ 695              		.loc 1 130 8 is_stmt 0 view .LVU200
+ 696 002a 0521     		movs	r1, #5
+ 697 002c 2046     		mov	r0, r4
+ 698 002e FFF7FEFF 		bl	crc16_modbus
+ 699              	.LVL78:
+ 700 0032 0146     		mov	r1, r0
+ 701              	.LVL79:
+ 131:software/scr/lora_data.c **** 	return NODE_HEARTBEAT_FRAME_SIZE;
+ 702              		.loc 1 131 2 is_stmt 1 view .LVU201
+ 703 0034 601D     		adds	r0, r4, #5
+ 704 0036 FFF7FEFF 		bl	write_u16_le
+ 705              	.LVL80:
+ 132:software/scr/lora_data.c **** }
+ 706              		.loc 1 132 2 view .LVU202
+ 132:software/scr/lora_data.c **** }
+ 707              		.loc 1 132 9 is_stmt 0 view .LVU203
+ 708 003a 0720     		movs	r0, #7
+ 709 003c EBE7     		b	.L48
+ 710              	.LVL81:
+ 711              	.L49:
+ 712              	.LCFI11:
+ 713              		.cfi_def_cfa_offset 0
+ 714              		.cfi_restore 4
+ 715              		.cfi_restore 14
+ 124:software/scr/lora_data.c **** 	}
+ 716              		.loc 1 124 10 view .LVU204
+ 717 003e 0020     		movs	r0, #0
+ 718              	.LVL82:
+ 719              		.loc 1 133 1 view .LVU205
+ 720 0040 7047     		bx	lr
+ 721              	.LVL83:
+ 722              	.L50:
+ 723              	.LCFI12:
+ 724              		.cfi_def_cfa_offset 8
+ 725              		.cfi_offset 4, -8
+ 726              		.cfi_offset 14, -4
+ 124:software/scr/lora_data.c **** 	}
+ 727              		.loc 1 124 10 view .LVU206
+ 728 0042 0020     		movs	r0, #0
+ 729              	.LVL84:
+ 124:software/scr/lora_data.c **** 	}
+ 730              		.loc 1 124 10 view .LVU207
+ 731 0044 E7E7     		b	.L48
+ 732              		.cfi_endproc
+ 733              	.LFE11:
+ 735              		.text
+ 736              	.Letext0:
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 17
+
+
+ 737              		.file 2 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/ma
+ 738              		.file 3 "c:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/13.3 rel1/arm-none-eabi/include/sy
+ 739              		.file 4 "software/inc/types.h"
+ 740              		.file 5 "software/inc/lora_data.h"
+ARM GAS  C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s 			page 18
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 lora_data.c
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:19     .text.read_u16_le:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:24     .text.read_u16_le:00000000 read_u16_le
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:45     .text.read_u32_le:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:50     .text.read_u32_le:00000000 read_u32_le
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:79     .text.write_u16_le:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:84     .text.write_u16_le:00000000 write_u16_le
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:107    .text.crc16_modbus:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:113    .text.crc16_modbus:00000000 crc16_modbus
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:192    .text.valid_control_frame:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:197    .text.valid_control_frame:00000000 valid_control_frame
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:314    .text.lora_decode_config:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:320    .text.lora_decode_config:00000000 lora_decode_config
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:436    .text.lora_decode_heartbeat:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:442    .text.lora_decode_heartbeat:00000000 lora_decode_heartbeat
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:525    .text.lora_encode_control_reply:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:531    .text.lora_encode_control_reply:00000000 lora_encode_control_reply
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:631    .text.lora_encode_heartbeat:00000000 $t
+C:\Users\Admin\AppData\Local\Temp\cc4hXgFc.s:637    .text.lora_encode_heartbeat:00000000 lora_encode_heartbeat
+
+NO UNDEFINED SYMBOLS
